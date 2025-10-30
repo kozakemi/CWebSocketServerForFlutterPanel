@@ -1,0 +1,57 @@
+# 编译产物
+*.o
+*.obj
+*.exe
+*.elf
+*.bin
+*.hex
+*.out
+
+# 构建目录
+build/
+cmake-build*/
+Makefile.in
+Makefile.am
+
+# IDE相关
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Git相关
+.git/
+
+# 临时文件
+*.tmp
+*.temp
+.DS_Store
+
+# 调试文件
+*.dSYM/
+gdb_history
+valgrind.log*
+
+# 日志文件
+*.log
+
+# CMake相关
+CMakeCache.txt
+CMakeFiles/
+cmake_install.cmake
+compile_commands.json
+
+# Autotools相关
+autom4te.cache/
+config.log
+config.status
+configure
+
+# 编译数据库
+compile_commands.json
+
+# 自定义 - 根据您的项目结构调整
+*.so
+*.dll
+*.dylib
+main
