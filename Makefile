@@ -6,7 +6,9 @@ SRC = main.c \
 	./wifi/wifi_scheduler.c \
 	./wifi/fun/wifi_enable.c \
 	./wifi/fun/wifi_status.c \
-	./wifi/fun/wifi_scan.c
+	./wifi/fun/wifi_scan.c \
+	./wifi/fun/wifi_connect.c \
+	./wifi/fun/wifi_disconnect.c \
 
 CC = gcc
 

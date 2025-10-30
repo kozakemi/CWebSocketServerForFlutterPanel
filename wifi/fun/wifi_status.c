@@ -259,6 +259,7 @@ void wifi_status(struct lws *wsi,size_t index,cJSON *root)
     if (!response_str)
     {
         printf("wifi_status: Failed to print response\n");
+        cJSON_Delete(response);
         return;
     }
     else
@@ -287,4 +288,5 @@ void wifi_status(struct lws *wsi,size_t index,cJSON *root)
     if (wifi_status_res_instance.data.security && strlen(wifi_status_res_instance.data.security) > 0) {
         free(wifi_status_res_instance.data.security);
     }
+    cJSON_Delete(response);
 }

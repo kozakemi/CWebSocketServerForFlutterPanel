@@ -60,7 +60,7 @@ wifi_enable_res wifi_enable_res_instance;
  * @param is_enable true：开启，false：关闭
  * @return int
  */
-static int wifi_enable_execution(bool is_enable)
+static wifi_enable_error_code wifi_enable_execution(bool is_enable)
 {
     // 获取当前状态
     FILE *fp;
@@ -204,4 +204,5 @@ void wifi_enable(struct lws *wsi, size_t index, cJSON *root)
         }
         cJSON_free(response_str);
     }
+    cJSON_Delete(response);
 }

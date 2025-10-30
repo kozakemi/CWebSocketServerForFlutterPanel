@@ -35,6 +35,7 @@ typedef struct
     char *security;
     int channel;
     int frequency_mhz;
+    bool recorded;
 } wifi_network_info;
 
 typedef struct
@@ -220,6 +221,9 @@ static int wifi_scan_execution(bool rescan)
                             temp_networks[count].channel = 0;
                         }
 
+                        // 默认设置为未记录
+                        temp_networks[count].recorded = false;
+
                         count++;
                     }
                 }
@@ -228,6 +232,36 @@ static int wifi_scan_execution(bool rescan)
     }
 
     pclose(fp);
+
+    // 检查哪些网络已被记录
+    snprintf(command, sizeof(command), "wpa_cli -i %s list_networks 2>/dev/null", WIFI_DEVICE);
+    fp = popen(command, "r");
+    if (fp != NULL) {
+        // 跳过标题行
+        fgets(buffer, sizeof(buffer), fp);
+        
+        // 解析已记录的网络
+        while (fgets(buffer, sizeof(buffer), fp) != NULL) {
+            // 解析SSID字段（第2列）
+            char *token = strtok(buffer, "\t");
+            if (token) {
+                token = strtok(NULL, "\t"); // 跳过network id
+                if (token) {
+                    // 移除SSID末尾的换行符
+                    token[strcspn(token, "\n")] = 0;
+                    
+                    // 在扫描结果中查找匹配的SSID
+                    for (size_t i = 0; i < count; i++) {
+                        if (strcmp(temp_networks[i].ssid, token) == 0) {
+                            temp_networks[i].recorded = true;
+                            break;
+                        }
+                    }
+                }
+            }
+        }
+        pclose(fp);
+    }
 
     // 调整到实际大小
     if (count > 0)
@@ -312,6 +346,7 @@ void wifi_scan(struct lws *wsi, size_t index, cJSON *root)
         cJSON_AddStringToObject(network_obj, "security", wifi_scan_res_instance.networks[i].security);
         cJSON_AddNumberToObject(network_obj, "channel", wifi_scan_res_instance.networks[i].channel);
         cJSON_AddNumberToObject(network_obj, "frequency_mhz", wifi_scan_res_instance.networks[i].frequency_mhz);
+        cJSON_AddBoolToObject(network_obj, "recorded", wifi_scan_res_instance.networks[i].recorded);
         cJSON_AddItemToArray(networks_array, network_obj);
     }
 

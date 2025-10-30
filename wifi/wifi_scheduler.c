@@ -9,7 +9,8 @@
 #include "fun/wifi_enable.h"
 #include "fun/wifi_status.h"
 #include "fun/wifi_scan.h"
-
+#include "fun/wifi_connect.h"
+#include "fun/wifi_disconnect.h"
 /**
  * @brief wifi调度数组定义
  *
@@ -19,8 +20,8 @@ wifi_dispatch wifi_dispatch_array[] =
         {"wifi_enable_request", "wifi_enable_response", wifi_enable},  // 开关wifi
         {"wifi_status_request", "wifi_status_response", wifi_status},  // 获取wifi已连接wifi状态
         {"wifi_scan_request", "wifi_scan_response", wifi_scan},        // 扫描wifi
-        {"wifi_connect_request", "wifi_connect_response", NULL},       // 连接wifi
-        {"wifi_disconnect_request", "wifi_disconnect_response", NULL}, // 断开wifi
+        {"wifi_connect_request", "wifi_connect_response", wifi_connect},       // 连接wifi
+        {"wifi_disconnect_request", "wifi_disconnect_response", wifi_disconnect}, // 断开wifi
 };
 
 #define WIFI_DISPATCH_ARRAY_LEN (sizeof(wifi_dispatch_array) / sizeof(wifi_dispatch_array[0]))
