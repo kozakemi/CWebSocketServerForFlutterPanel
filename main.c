@@ -1,3 +1,4 @@
+#include <stddef.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -12,8 +13,20 @@
 
 struct per_session_data
 {
-    int dummy;
+    char path[256];  // 存储WebSocket连接的路径
 };
+
+typedef struct
+{
+    char * patch;
+    void (*scheduler)(struct lws *wsi,cJSON *root);
+} websocket_path_scheduling;
+
+static websocket_path_scheduling websocket_path_scheduling_table[] = {
+    {"/wifi",wifi_scheduler},
+    {"/brightness",NULL},
+};
+#define WEBSOCKET_PATH_SCHEDULING_TABLE_SIZE (sizeof(websocket_path_scheduling_table) / sizeof(websocket_path_scheduling))
 
 /**
  * @brief ws服务器回调函数
@@ -26,7 +39,7 @@ struct per_session_data
  * @return int 
  */
 static int
-callback_wifi_server(struct lws *wsi, enum lws_callback_reasons reason,
+callback_server(struct lws *wsi, enum lws_callback_reasons reason,
                      void *user, void *in, size_t len)
 {
     struct per_session_data *pss = (struct per_session_data *)user;
@@ -34,8 +47,15 @@ callback_wifi_server(struct lws *wsi, enum lws_callback_reasons reason,
     switch (reason)
     {
     case LWS_CALLBACK_ESTABLISHED:
-        printf("客户端连接已建立.\n");
+    {
+        // 获取WebSocket连接的路径
+        int path_len = lws_hdr_copy(wsi, pss->path, sizeof(pss->path), WSI_TOKEN_GET_URI);
+        if (path_len < 0) {
+            strcpy(pss->path, "/");  // 默认路径
+        }
+        printf("客户端连接已建立，路径: %s\n", pss->path);
         break;
+    }
 
     case LWS_CALLBACK_RECEIVE:
     {
@@ -49,109 +69,42 @@ callback_wifi_server(struct lws *wsi, enum lws_callback_reasons reason,
             fprintf(stderr, "JSON 解析失败! %s\n", error_ptr ? error_ptr : "未知错误");
 
             // 发送解析错误响应
-            const char *err_resp = "{\"type\": \"wifi_connect_response\", \"data\": {\"success\": false, \"message\": \"Invalid JSON format\", \"error\": \"JSON_PARSE_ERROR\"}}";
+            const char *err_resp = "{\"data\": {\"success\": false, \"message\": \"Invalid JSON format\", \"error\": \"JSON_PARSE_ERROR\"}}";
             unsigned char buf[LWS_PRE + strlen(err_resp)];
             memcpy(&buf[LWS_PRE], err_resp, strlen(err_resp));
             lws_write(wsi, &buf[LWS_PRE], strlen(err_resp), LWS_WRITE_TEXT);
             break;
         }
-
-        wifi_scheduler(wsi,root);
-        // 检查 "type" 字段
-
-
-
-        // if (strcmp(type_item->valuestring, "wifi_connect_request") == 0) {
-        //     printf("识别到 wifi_connect_request\n");
-
-        //     // 获取 data 对象
-        //     cJSON *data_obj = cJSON_GetObjectItemCaseSensitive(root, "data");
-        //     if (!cJSON_IsObject(data_obj)) {
-        //         fprintf(stderr, "缺少 'data' 对象\n");
-        //         cJSON_Delete(root);
-
-        //         const char *err_resp = "{\"type\": \"wifi_connect_response\", \"data\": {\"success\": false, \"message\": \"Missing 'data' field\", \"error\": \"MISSING_DATA\"}}";
-        //         unsigned char buf[LWS_PRE + strlen(err_resp)];
-        //         memcpy(&buf[LWS_PRE], err_resp, strlen(err_resp));
-        //         lws_write(wsi, &buf[LWS_PRE], strlen(err_resp), LWS_WRITE_TEXT);
-        //         break;
-        //     }
-
-        //     // 获取 ssid 和 password
-        //     cJSON *ssid_item = cJSON_GetObjectItemCaseSensitive(data_obj, "ssid");
-        //     cJSON *pass_item = cJSON_GetObjectItemCaseSensitive(data_obj, "password");
-
-        //     if (!cJSON_IsString(ssid_item) || !ssid_item->valuestring ||
-        //         !cJSON_IsString(pass_item) || !pass_item->valuestring) {
-        //         fprintf(stderr, "缺少或无效的 SSID 或 Password\n");
-        //         cJSON_Delete(root);
-
-        //         const char *err_resp = "{\"type\": \"wifi_connect_response\", \"data\": {\"success\": false, \"message\": \"SSID or Password missing/invalid\", \"error\": \"INVALID_CREDENTIALS\"}}";
-        //         unsigned char buf[LWS_PRE + strlen(err_resp)];
-        //         memcpy(&buf[LWS_PRE], err_resp, strlen(err_resp));
-        //         lws_write(wsi, &buf[LWS_PRE], strlen(err_resp), LWS_WRITE_TEXT);
-        //         break;
-        //     }
-
-        //     char ssid[64];
-        //     char password[64];
-        //     strncpy(ssid, ssid_item->valuestring, sizeof(ssid) - 1);
-        //     strncpy(password, pass_item->valuestring, sizeof(password) - 1);
-        //     ssid[sizeof(ssid) - 1] = '\0';
-        //     password[sizeof(password) - 1] = '\0';
-
-        //     printf("请求连接到 SSID: '%s', Password: '%s'\n", ssid, password);
-
-        //     // --- 模拟连接逻辑 ---
-        //     int connect_success = 1;
-        //     const char *message = "Connected successfully";
-        //     const char *error = NULL;
-
-        //     // 模拟失败场景
-        //     if (strcmp(ssid, "FailTest") == 0) {
-        //         connect_success = 0;
-        //         message = "Simulated connection failure";
-        //         error = "SIMULATED_ERROR";
-        //     }
-        //     // --------------------
-
-        //     // 构造响应 JSON
-        //     cJSON *response = cJSON_CreateObject();
-        //     cJSON *data = cJSON_CreateObject();
-        //     cJSON_AddStringToObject(response, "type", "wifi_connect_response");
-        //     cJSON_AddItemToObject(response, "data", data);
-        //     cJSON_AddBoolToObject(data, "success", connect_success);
-        //     cJSON_AddStringToObject(data, "message", message);
-        //     cJSON_AddStringToObject(data, "error", error);
-        //     // 		    if (error) {
-        //     //     cJSON_AddStringToObject(data, "error", error);
-        //     // } else {
-        //     //     cJSON_AddNullToObject(data, "error");
-        //     // }
-        //     char *response_str = cJSON_PrintUnformatted(response); // 紧凑格式
-        //     if (!response_str) {
-        //         fprintf(stderr, "cJSON_Print 失败\n");
-        //     } else {
-        //         printf("发送响应: %s\n", response_str);
-
-        //         unsigned char buf[LWS_PRE + strlen(response_str)];
-        //         memcpy(&buf[LWS_PRE], response_str, strlen(response_str));
-
-        //         int n = lws_write(wsi, &buf[LWS_PRE], strlen(response_str), LWS_WRITE_TEXT);
-        //         if (n < strlen(response_str)) {
-        //             fprintf(stderr, "lws_write 失败 (返回 %d)\n", n);
-        //         }
-
-        //         free(response_str); // 释放 cJSON_Print 分配的内存
-        //     }
-
-        //     // 清理
-        //     cJSON_Delete(response);
-        // } else {
-        //     printf("未知消息类型: %s\n", type_item->valuestring);
-        //     // 可以选择发送错误响应
-        // }
-
+        
+        // 根据路径查找对应的调度器
+        int found = 0;
+        for (int i = 0; i < WEBSOCKET_PATH_SCHEDULING_TABLE_SIZE; i++) {
+            if (strcmp(pss->path, websocket_path_scheduling_table[i].patch) == 0) {
+                found = 1;
+                if (websocket_path_scheduling_table[i].scheduler != NULL) {
+                    printf("调用 %s 路径的调度器\n", pss->path);
+                    websocket_path_scheduling_table[i].scheduler(wsi, root);
+                } else {
+                    printf("路径 %s 的调度器尚未实现\n", pss->path);
+                    // 发送未实现响应
+                    const char *not_impl_resp = "{\"success\": false, \"error\": -1, \"message\": \"功能尚未实现\", \"data\": {}}";
+                    unsigned char buf[LWS_PRE + strlen(not_impl_resp)];
+                    memcpy(&buf[LWS_PRE], not_impl_resp, strlen(not_impl_resp));
+                    lws_write(wsi, &buf[LWS_PRE], strlen(not_impl_resp), LWS_WRITE_TEXT);
+                }
+                break;
+            }
+        }
+        
+        if (!found) {
+            printf("未知路径: %s\n", pss->path);
+            // 发送路径不支持响应
+            const char *unsupported_resp = "{\"success\": false, \"error\": -1, \"message\": \"不支持的路径\", \"data\": {}}";
+            unsigned char buf[LWS_PRE + strlen(unsupported_resp)];
+            memcpy(&buf[LWS_PRE], unsupported_resp, strlen(unsupported_resp));
+            lws_write(wsi, &buf[LWS_PRE], strlen(unsupported_resp), LWS_WRITE_TEXT);
+        }
+        
         // 释放解析的 JSON 树
         cJSON_Delete(root);
     }
@@ -174,8 +127,8 @@ callback_wifi_server(struct lws *wsi, enum lws_callback_reasons reason,
 
 static struct lws_protocols protocols[] = {
     {
-        .name = "wifi-test-protocol",
-        .callback = callback_wifi_server,
+        .name = "ws_protocol",
+        .callback = callback_server,
         .per_session_data_size = sizeof(struct per_session_data),
         .rx_buffer_size = 1024,
     },

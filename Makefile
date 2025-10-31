@@ -9,6 +9,9 @@ SRC = main.c \
 	./wifi/fun/wifi_scan.c \
 	./wifi/fun/wifi_connect.c \
 	./wifi/fun/wifi_disconnect.c \
+	./brightness/brightness_scheduler.c \
+	./brightness/fun/brightness_status.c \
+	./brightness/fun/brightness_set.c
 
 CC = gcc
 

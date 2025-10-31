@@ -8,12 +8,6 @@
 #include "../wifi_scheduler.h"
 #include "wifi_status.h"
 
-/**
- * @brief wifi状态获取错误枚举
- * 
- */
-
-
 /************* 请求 ***************/
 
 typedef struct 

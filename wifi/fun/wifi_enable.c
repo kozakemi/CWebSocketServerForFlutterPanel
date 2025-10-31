@@ -127,6 +127,7 @@ static wifi_error_t wifi_enable_execution(bool is_enable)
 /**
  * @brief wifi开关协议处理
  *
+ * @param wsi WebSocket 实例指针
  * @param index 调度数组索引值
  * @param root json对象
  */

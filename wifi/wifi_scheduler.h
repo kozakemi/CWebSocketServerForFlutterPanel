@@ -1,9 +1,9 @@
 #ifndef __WIFI_SCHEDULER_H__
 #define __WIFI_SCHEDULER_H__ 
 #include <stdint.h>
+#include <libwebsockets.h>
 #include "../lib/cJSON/cJSON.h"
 #include "wifi_def.h"
-#include <libwebsockets.h>
 
 /**
  * @brief wifi调度结构体定义
