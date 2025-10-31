@@ -13,6 +13,55 @@
  *
  */
 
+/**
+ * @brief 解码UTF-8转义序列
+ * 
+ * 将形如 \xe4\xbc\x9a\xe8\xae\xae001 的转义序列转换为正确的UTF-8字符串
+ * 
+ * @param input 输入的包含转义序列的字符串
+ * @param output 输出缓冲区
+ * @param output_size 输出缓冲区大小
+ * @return int 成功返回0，失败返回-1
+ */
+static int decode_utf8_escape_sequence(const char *input, char *output, size_t output_size)
+{
+    if (!input || !output || output_size == 0) {
+        return -1;
+    }
+    
+    const char *src = input;
+    char *dst = output;
+    size_t dst_len = 0;
+    
+    while (*src && dst_len < output_size - 1) {
+        if (*src == '\\' && *(src + 1) == 'x' && 
+            src + 3 < input + strlen(input)) {
+            // 检查是否是有效的十六进制转义序列
+            char hex_str[3] = {src[2], src[3], '\0'};
+            char *endptr;
+            unsigned long hex_val = strtoul(hex_str, &endptr, 16);
+            
+            if (*endptr == '\0' && hex_val <= 0xFF) {
+                // 有效的十六进制值，转换为字节
+                *dst++ = (char)hex_val;
+                dst_len++;
+                src += 4; // 跳过 \xXX
+            } else {
+                // 无效的转义序列，直接复制
+                *dst++ = *src++;
+                dst_len++;
+            }
+        } else {
+            // 普通字符，直接复制
+            *dst++ = *src++;
+            dst_len++;
+        }
+    }
+    
+    *dst = '\0';
+    return 0;
+}
+
 
 /************* 请求 ***************/
 
@@ -178,10 +227,17 @@ static wifi_error_t wifi_scan_execution(bool rescan)
                         token = strtok(NULL, "\t");
                         if (token)
                         {
-                            // 处理SSID中的转义字符
-                            strcpy(ssid, token);
                             // 移除末尾的换行符
-                            ssid[strcspn(ssid, "\n")] = 0;
+                            token[strcspn(token, "\n")] = 0;
+                            
+                            // 处理SSID中的UTF-8转义字符
+                            char decoded_ssid[128];
+                            if (decode_utf8_escape_sequence(token, decoded_ssid, sizeof(decoded_ssid)) == 0) {
+                                strcpy(ssid, decoded_ssid);
+                            } else {
+                                // 解码失败，使用原始字符串
+                                strcpy(ssid, token);
+                            }
                         }
                         else
                         {
@@ -248,16 +304,28 @@ static wifi_error_t wifi_scan_execution(bool rescan)
                     // 移除SSID末尾的换行符
                     token[strcspn(token, "\n")] = 0;
                     
-                    // 在扫描结果中查找匹配的SSID
-                    for (size_t i = 0; i < count; i++) {
-                        if (strcmp(temp_networks[i].ssid, token) == 0) {
-                            temp_networks[i].recorded = true;
-                            break;
+                    // 解码已记录网络的SSID
+                    char decoded_recorded_ssid[128];
+                    if (decode_utf8_escape_sequence(token, decoded_recorded_ssid, sizeof(decoded_recorded_ssid)) == 0) {
+                        // 使用解码后的SSID进行比较
+                        for (size_t i = 0; i < count; i++) {
+                            if (strcmp(temp_networks[i].ssid, decoded_recorded_ssid) == 0) {
+                                temp_networks[i].recorded = true;
+                                break;
+                            }
                         }
-                    }
-                }
-            }
-        }
+                    } else {
+                        // 解码失败，使用原始字符串比较
+                        for (size_t i = 0; i < count; i++) {
+                             if (strcmp(temp_networks[i].ssid, token) == 0) {
+                                 temp_networks[i].recorded = true;
+                                 break;
+                             }
+                         }
+                     }
+                 }
+             }
+         }
         pclose(fp);
     }
 
