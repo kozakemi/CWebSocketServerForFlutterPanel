@@ -7,11 +7,7 @@
 #include "../wifi_def.h"
 #include "../wifi_scheduler.h"
 #include "wifi_connect.h"
-typedef enum
-{
-    WIFI_CONNECT_SUCCESS = 0,
-    WIFI_CONNECT_FAILURE = 1
-} wifi_connect_error_code;
+
 
 /************* 请求 ***************/
 typedef struct 
@@ -25,6 +21,7 @@ typedef struct
 typedef struct
 {
     char * type;
+    char * request_id;
     wifi_connect_data data;
 } wifi_connect_request;
 
@@ -34,6 +31,7 @@ typedef struct
 typedef struct
 {
     char * type;
+    char * request_id;
     bool success;
     int error;
 } wifi_connect_response;
@@ -46,12 +44,15 @@ wifi_connect_response wifi_connect_res_instance;
  * 
  * @return wifi_connect_error_code 
  */
-static wifi_connect_error_code wifi_connect_execution(void)
+static wifi_error_t wifi_connect_execution(void)
 {
     FILE *fp;
     char buffer[256];
     char command[256];
     int network_id = -1;
+    int timeout;
+    int wait_time;
+    bool connected = false;
     
     // 当密码为空时，尝试使用已保存的网络配置
     if (!wifi_connect_req_instance.data.password || 
@@ -99,7 +100,7 @@ static wifi_connect_error_code wifi_connect_execution(void)
     }
     
     if (network_id < 0) {
-        return WIFI_CONNECT_FAILURE;
+        return WIFI_ERR_TOOL_ERROR;
     }
     
     // 设置SSID
@@ -136,10 +137,9 @@ static wifi_connect_error_code wifi_connect_execution(void)
     
 wait_for_connection:
     // 等待连接结果（最多等待timeout_ms毫秒）
-    int timeout = wifi_connect_req_instance.data.timeout_ms > 0 ? 
-                  wifi_connect_req_instance.data.timeout_ms : 20000; // 默认20秒
-    int wait_time = 0;
-    bool connected = false;
+    timeout = wifi_connect_req_instance.data.timeout_ms > 0 ?  wifi_connect_req_instance.data.timeout_ms : 20000; // 默认20秒
+    wait_time = 0;
+    connected = false;
     
     while (wait_time < timeout) {
         snprintf(command, sizeof(command), 
@@ -171,7 +171,7 @@ wait_for_connection:
                      WIFI_DEVICE, network_id);
             system(command);
         }
-        return WIFI_CONNECT_FAILURE;
+        return WIFI_ERR_TIMEOUT;
     }
     
     // 连接成功，保存配置
@@ -180,7 +180,7 @@ wait_for_connection:
              WIFI_DEVICE);
     system(command);
     
-    return WIFI_CONNECT_SUCCESS;
+    return WIFI_ERR_OK;
 }
 
 void wifi_connect(struct lws *wsi, size_t index, cJSON *root)
@@ -201,6 +201,8 @@ void wifi_connect(struct lws *wsi, size_t index, cJSON *root)
      */
     cJSON *type = cJSON_GetObjectItem(root, "type");
     wifi_connect_req_instance.type = type->valuestring;
+    cJSON *request_id = cJSON_GetObjectItem(root, "request_id");
+    wifi_connect_req_instance.request_id = request_id->valuestring;
     cJSON *data = cJSON_GetObjectItem(root, "data");
     wifi_connect_req_instance.data.ssid = cJSON_GetObjectItem(data, "ssid")->valuestring;
     wifi_connect_req_instance.data.password = cJSON_GetObjectItem(data, "password")->valuestring;
@@ -229,36 +231,31 @@ void wifi_connect(struct lws *wsi, size_t index, cJSON *root)
     cJSON *response = cJSON_CreateObject();
     
     wifi_connect_res_instance.type = wifi_dispatch_get_by_index(index)->response;
+    wifi_connect_res_instance.request_id = wifi_connect_req_instance.request_id;
     wifi_connect_res_instance.error = ret;
-    if(ret == WIFI_CONNECT_SUCCESS)
-    {
-        wifi_connect_res_instance.success = true;
-        cJSON_AddStringToObject(response, "type", wifi_connect_res_instance.type);
-        cJSON_AddBoolToObject(response, "success", wifi_connect_res_instance.success);
-        cJSON_AddNumberToObject(response, "error", wifi_connect_res_instance.error);
-    }
-    else
-    {
-        wifi_connect_res_instance.success = false;
-        cJSON_AddStringToObject(response, "type", wifi_connect_res_instance.type);
-        cJSON_AddBoolToObject(response, "success", wifi_connect_res_instance.success);
-        cJSON_AddNumberToObject(response, "error", wifi_connect_res_instance.error);
-    }
+    wifi_connect_res_instance.success = (ret == WIFI_ERR_OK);
+    cJSON_AddStringToObject(response, "type", wifi_connect_res_instance.type);
+    cJSON_AddStringToObject(response, "request_id", wifi_connect_res_instance.request_id);
+    cJSON_AddBoolToObject(response, "success", wifi_connect_res_instance.success);
+    cJSON_AddNumberToObject(response, "error", wifi_connect_res_instance.error);
+    // 添加空的data对象，保持统一结构
+    cJSON *res_data = cJSON_CreateObject();
+    cJSON_AddItemToObject(response, "data", res_data);
     char *response_str = cJSON_PrintUnformatted(response); // 紧凑格式
     if (!response_str)
     {
-        printf("wifi_enable: Failed to print response\n");
+        printf("wifi_connect: Failed to print response\n");
         return;
     }
     else
     {
-        printf("wifi_enable: %s\n", response_str);
+        printf("wifi_connect: %s\n", response_str);
         unsigned char buf[LWS_PRE + strlen(response_str)];
         memcpy(&buf[LWS_PRE], response_str, strlen(response_str));
         int n = lws_write(wsi, &buf[LWS_PRE], strlen(response_str), LWS_WRITE_TEXT);
         if (n < 0)
         {
-            printf("wifi_enable: Failed to write response\n");
+            printf("wifi_connect: Failed to write response\n");
         }
         cJSON_free(response_str);
     }

@@ -12,17 +12,14 @@
  * @brief wifi扫描错误枚举
  *
  */
-typedef enum
-{
-    WIFI_SCAN_SUCCESS = 0,
-    WIFI_SCAN_ERROR
-} wifi_scan_error_code;
+
 
 /************* 请求 ***************/
 
 typedef struct
 {
     char *type;
+    char *request_id;
     bool rescan;
 } wifi_scan_req;
 
@@ -41,6 +38,7 @@ typedef struct
 typedef struct
 {
     char *type;
+    char *request_id;
     bool success;
     int error;
     wifi_network_info *networks;
@@ -56,7 +54,7 @@ wifi_scan_res wifi_scan_res_instance;
  * @param rescan 是否强制重新扫描
  * @return int 错误码
  */
-static int wifi_scan_execution(bool rescan)
+static wifi_error_t wifi_scan_execution(bool rescan)
 {
     FILE *fp;
     char buffer[512];
@@ -93,14 +91,14 @@ static int wifi_scan_execution(bool rescan)
     fp = popen(command, "r");
     if (fp == NULL)
     {
-        return WIFI_SCAN_ERROR;
+        return WIFI_ERR_TOOL_ERROR;
     }
 
     // 第一行是标题，跳过
     if (fgets(buffer, sizeof(buffer), fp) == NULL)
     {
         pclose(fp);
-        return WIFI_SCAN_ERROR;
+        return WIFI_ERR_TOOL_ERROR;
     }
 
     // 预分配网络列表空间
@@ -108,7 +106,7 @@ static int wifi_scan_execution(bool rescan)
     if (!temp_networks)
     {
         pclose(fp);
-        return WIFI_SCAN_ERROR;
+        return WIFI_ERR_INTERNAL;
     }
 
     size_t count = 0;
@@ -140,7 +138,7 @@ static int wifi_scan_execution(bool rescan)
                 }
                 free(temp_networks);
                 pclose(fp);
-                return WIFI_SCAN_ERROR;
+                return WIFI_ERR_INTERNAL;
             }
             temp_networks = new_networks;
         }
@@ -281,7 +279,7 @@ static int wifi_scan_execution(bool rescan)
     wifi_scan_res_instance.networks = temp_networks;
     wifi_scan_res_instance.network_count = count;
 
-    return WIFI_SCAN_SUCCESS;
+    return WIFI_ERR_OK;
 }
 
 /**
@@ -298,6 +296,8 @@ void wifi_scan(struct lws *wsi, size_t index, cJSON *root)
     // { "type": "wifi_scan_request", "data": { "rescan": true } }
     cJSON *type = cJSON_GetObjectItem(root, "type");
     wifi_scan_req_instance.type = type->valuestring;
+    cJSON *request_id = cJSON_GetObjectItem(root, "request_id");
+    wifi_scan_req_instance.request_id = request_id->valuestring;
 
     cJSON *data = cJSON_GetObjectItem(root, "data");
     wifi_scan_req_instance.rescan = cJSON_IsTrue(cJSON_GetObjectItem(data, "rescan"));
@@ -306,8 +306,9 @@ void wifi_scan(struct lws *wsi, size_t index, cJSON *root)
 
     // 根据执行结果构建响应数据
     wifi_scan_res_instance.type = wifi_dispatch_get_by_index(index)->response; // 使用响应类型
-    wifi_scan_res_instance.success = (ret == WIFI_SCAN_SUCCESS);               // 设置成功标志
+    wifi_scan_res_instance.success = (ret == WIFI_ERR_OK);                     // 设置成功标志
     wifi_scan_res_instance.error = ret;                                        // 设置错误码
+    wifi_scan_res_instance.request_id = wifi_scan_req_instance.request_id;     // 回显request_id
 
     /**
      * {
@@ -331,6 +332,7 @@ void wifi_scan(struct lws *wsi, size_t index, cJSON *root)
     cJSON *response = cJSON_CreateObject();
     cJSON *res_data = cJSON_CreateObject();
     cJSON_AddStringToObject(response, "type", wifi_scan_res_instance.type);
+    cJSON_AddStringToObject(response, "request_id", wifi_scan_res_instance.request_id);
     cJSON_AddBoolToObject(response, "success", wifi_scan_res_instance.success);
     cJSON_AddNumberToObject(response, "error", wifi_scan_res_instance.error);
 

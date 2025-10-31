@@ -8,11 +8,7 @@
 #include "../wifi_scheduler.h"
 #include "wifi_disconnect.h"
 
-typedef enum
-{
-    WIFI_DISCONNECT_SUCCESS = 0,
-    WIFI_DISCONNECT_FAILURE = 17 // 对应API文档中的WIFI_ERR_NOT_CONNECTED
-} wifi_disconnect_error_code;
+
 
 /************* 请求 ***************/
 typedef struct 
@@ -23,6 +19,7 @@ typedef struct
 typedef struct
 {
     char * type;
+    char * request_id;
     wifi_disconnect_data data;
 } wifi_disconnect_request;
 
@@ -30,6 +27,7 @@ typedef struct
 typedef struct
 {
     char * type;
+    char * request_id;
     bool success;
     int error;
 } wifi_disconnect_response;
@@ -42,7 +40,7 @@ wifi_disconnect_response wifi_disconnect_res_instance;
  * 
  * @return wifi_disconnect_error_code 
  */
-static wifi_disconnect_error_code wifi_disconnect_execution(void)
+static wifi_error_t wifi_disconnect_execution(void)
 {
     FILE *fp;
     char buffer[256];
@@ -67,7 +65,7 @@ static wifi_disconnect_error_code wifi_disconnect_execution(void)
     }
     
     if (!is_connected) {
-        return WIFI_DISCONNECT_FAILURE; // 未连接任何网络
+        return WIFI_ERR_NOT_CONNECTED; // 未连接任何网络
     }
     
     // 如果请求中指定了SSID，则检查当前连接的是否是该网络
@@ -92,7 +90,7 @@ static wifi_disconnect_error_code wifi_disconnect_execution(void)
         
         // 如果当前连接的SSID与请求的SSID不匹配，返回错误
         if (strcmp(current_ssid, wifi_disconnect_req_instance.data.ssid) != 0) {
-            return WIFI_DISCONNECT_FAILURE;
+            return WIFI_ERR_BAD_REQUEST;
         }
     }
     
@@ -104,10 +102,10 @@ static wifi_disconnect_error_code wifi_disconnect_execution(void)
     int result = system(command);
     
     if (result != 0) {
-        return WIFI_DISCONNECT_FAILURE;
+        return WIFI_ERR_TOOL_ERROR;
     }
     
-    return WIFI_DISCONNECT_SUCCESS;
+    return WIFI_ERR_OK;
 }
 
 void wifi_disconnect(struct lws *wsi, size_t index, cJSON *root)
@@ -121,6 +119,9 @@ void wifi_disconnect(struct lws *wsi, size_t index, cJSON *root)
      */
     cJSON *type = cJSON_GetObjectItem(root, "type");
     wifi_disconnect_req_instance.type = type->valuestring;
+    
+    cJSON *request_id = cJSON_GetObjectItem(root, "request_id");
+    wifi_disconnect_req_instance.request_id = request_id->valuestring;
     
     cJSON *data = cJSON_GetObjectItem(root, "data");
     cJSON *ssid_item = cJSON_GetObjectItem(data, "ssid");
@@ -146,10 +147,12 @@ void wifi_disconnect(struct lws *wsi, size_t index, cJSON *root)
     cJSON *response = cJSON_CreateObject();
     
     wifi_disconnect_res_instance.type = wifi_dispatch_get_by_index(index)->response;
+    wifi_disconnect_res_instance.request_id = wifi_disconnect_req_instance.request_id;
     wifi_disconnect_res_instance.error = ret;
-    wifi_disconnect_res_instance.success = (ret == WIFI_DISCONNECT_SUCCESS);
+    wifi_disconnect_res_instance.success = (ret == WIFI_ERR_OK);
     
     cJSON_AddStringToObject(response, "type", wifi_disconnect_res_instance.type);
+    cJSON_AddStringToObject(response, "request_id", wifi_disconnect_res_instance.request_id);
     cJSON_AddBoolToObject(response, "success", wifi_disconnect_res_instance.success);
     cJSON_AddNumberToObject(response, "error", wifi_disconnect_res_instance.error);
     

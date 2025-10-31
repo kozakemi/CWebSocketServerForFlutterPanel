@@ -8,15 +8,7 @@
 #include "../wifi_scheduler.h"
 #include "wifi_enable.h"
 
-/**
- * @brief wifi开关枚举
- *
- */
-typedef enum
-{
-    wifi_enable_success = 0,
-    wifi_enable_fail = 1
-} wifi_enable_error_code;
+
 
 /************* 请求 ***************/
 /**
@@ -35,6 +27,7 @@ typedef struct
 typedef struct
 {
     char *type;
+    char *request_id;
     wifi_enable_data data;
 } wifi_enable_req;
 
@@ -46,6 +39,7 @@ typedef struct
 typedef struct
 {
     char *type;
+    char *request_id;
     bool success;
     int error;
     wifi_enable_data data;
@@ -60,7 +54,7 @@ wifi_enable_res wifi_enable_res_instance;
  * @param is_enable true：开启，false：关闭
  * @return int
  */
-static wifi_enable_error_code wifi_enable_execution(bool is_enable)
+static wifi_error_t wifi_enable_execution(bool is_enable)
 {
     // 获取当前状态
     FILE *fp;
@@ -103,15 +97,7 @@ static wifi_enable_error_code wifi_enable_execution(bool is_enable)
             result = system(command);
             if (result != 0)
             {
-                // // 如果重新配置失败，则尝试启动新的wpa_supplicant进程
-                // // wpa_supplicant -B -i {interface} -c {config_file}
-                // // -B: 后台运行
-                // // -i: 指定网络接口
-                // // -c: 指定配置文件路径
-                // printf("wifi_enable: Failed to wpa_cli, restart wpa_supplicant\n");
-                // snprintf(command, sizeof(command), "wpa_supplicant -B -i %s -c /tmp/wpa_supplicant.conf", WIFI_DEVICE);
-                // result = system(command);
-                return wifi_enable_fail;
+                return WIFI_ERR_TOOL_ERROR;
             }
         }
         else
@@ -128,14 +114,14 @@ static wifi_enable_error_code wifi_enable_execution(bool is_enable)
         // 检查返回值
         if (result != 0)
         {
-            return wifi_enable_fail;
             printf("wifi_enable: Failed to %s WiFi\n", is_enable ? "enable" : "disable");
+            return WIFI_ERR_TOOL_ERROR;
         }
     }
 
     // 检查状态
     printf("wifi_enable: %s WiFi\n", is_enable ? "enable" : "disable");
-    return wifi_enable_success;
+    return WIFI_ERR_OK;
 }
 
 /**
@@ -157,6 +143,8 @@ void wifi_enable(struct lws *wsi, size_t index, cJSON *root)
      */
     cJSON *type = cJSON_GetObjectItem(root, "type");
     wifi_enable_req_instance.type = type->valuestring;
+    cJSON *request_id = cJSON_GetObjectItem(root, "request_id");
+    wifi_enable_req_instance.request_id = request_id->valuestring;
     cJSON *data = cJSON_GetObjectItem(root, "data");
     wifi_enable_req_instance.data.enable = cJSON_IsTrue(cJSON_GetObjectItem(data, "enable"));
 
@@ -165,9 +153,10 @@ void wifi_enable(struct lws *wsi, size_t index, cJSON *root)
 
     // 根据执行结果构建响应数据
     wifi_enable_res_instance.type = wifi_dispatch_get_by_index(index)->response; // 使用响应类型
-    wifi_enable_res_instance.success = (ret == wifi_enable_success);             // 设置成功标志
+    wifi_enable_res_instance.success = (ret == WIFI_ERR_OK);                     // 设置成功标志
     wifi_enable_res_instance.error = ret;                                        // 设置错误码
     wifi_enable_res_instance.data.enable = wifi_enable_req_instance.data.enable; // 设置数据
+    wifi_enable_res_instance.request_id = wifi_enable_req_instance.request_id;   // 回显request_id
 
     /**
      * {
@@ -181,6 +170,7 @@ void wifi_enable(struct lws *wsi, size_t index, cJSON *root)
     cJSON *response = cJSON_CreateObject();
     cJSON *res_data = cJSON_CreateObject();
     cJSON_AddStringToObject(response, "type", wifi_enable_res_instance.type);
+    cJSON_AddStringToObject(response, "request_id", wifi_enable_res_instance.request_id);
     cJSON_AddBoolToObject(response, "success", wifi_enable_res_instance.success);
     cJSON_AddNumberToObject(response, "error", wifi_enable_res_instance.error);
     cJSON_AddBoolToObject(res_data, "enable", wifi_enable_res_instance.data.enable);

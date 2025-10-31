@@ -12,17 +12,14 @@
  * @brief wifi状态获取错误枚举
  * 
  */
-typedef enum
-{
-    WIFI_STATUS_SUCCESS = 0,
-    WIFI_STATUS_ERROR
-} wifi_status_error_code;
+
 
 /************* 请求 ***************/
 
 typedef struct 
 {
     char * type;
+    char * request_id;
 }wifi_status_req;
 
 /************* 响应 ***************/
@@ -44,6 +41,7 @@ typedef struct
 typedef struct
 {
     char * type;
+    char * request_id;
     bool success;
     int error;
     wifi_status_data data;
@@ -57,7 +55,7 @@ wifi_status_res wifi_status_res_instance;
  * 
  * @return int 
  */
-static int wifi_status_execution(void)
+static wifi_error_t wifi_status_execution(void)
 {
     // 初始化数据结构
     wifi_status_res_instance.data.enaable = false;
@@ -171,7 +169,7 @@ static int wifi_status_execution(void)
         }
     }
 
-    return WIFI_STATUS_SUCCESS;
+    return WIFI_ERR_OK;
 }
 
 /**
@@ -187,13 +185,16 @@ void wifi_status(struct lws *wsi,size_t index,cJSON *root)
     // { "type": "wifi_status_request", "data": {} }
     cJSON *type = cJSON_GetObjectItem(root, "type");
     wifi_status_req_instance.type = type->valuestring;
+    cJSON *request_id = cJSON_GetObjectItem(root, "request_id");
+    wifi_status_req_instance.request_id = request_id->valuestring;
 
     ret = wifi_status_execution(); //执行状态获取操作
 
     // 根据执行结果构建响应数据
     wifi_status_res_instance.type = wifi_dispatch_get_by_index(index)->response; // 使用响应类型
-    wifi_status_res_instance.success = (ret == WIFI_STATUS_SUCCESS);             // 设置成功标志
+    wifi_status_res_instance.success = (ret == WIFI_ERR_OK);                     // 设置成功标志
     wifi_status_res_instance.error = ret;                                        // 设置错误码
+    wifi_status_res_instance.request_id = wifi_status_req_instance.request_id;   // 回显request_id
 
     /**
      * {
@@ -216,6 +217,7 @@ void wifi_status(struct lws *wsi,size_t index,cJSON *root)
     cJSON *response = cJSON_CreateObject();
     cJSON *res_data = cJSON_CreateObject();
     cJSON_AddStringToObject(response, "type", wifi_status_res_instance.type);
+    cJSON_AddStringToObject(response, "request_id", wifi_status_res_instance.request_id);
     cJSON_AddBoolToObject(response, "success", wifi_status_res_instance.success);
     cJSON_AddNumberToObject(response, "error", wifi_status_res_instance.error);
     
