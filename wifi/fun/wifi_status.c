@@ -25,7 +25,7 @@ typedef struct
 /************* 响应 ***************/
 typedef struct
 {
-    bool enaable;
+    bool enable;
     bool connected;
     char * ssid;
     char * bssid;
@@ -58,7 +58,7 @@ wifi_status_res wifi_status_res_instance;
 static wifi_error_t wifi_status_execution(void)
 {
     // 初始化数据结构
-    wifi_status_res_instance.data.enaable = false;
+    wifi_status_res_instance.data.enable = false;
     wifi_status_res_instance.data.connected = false;
     wifi_status_res_instance.data.ssid = "";
     wifi_status_res_instance.data.bssid = "";
@@ -79,7 +79,7 @@ static wifi_error_t wifi_status_execution(void)
     if (fp != NULL) {
         if (fgets(buffer, sizeof(buffer), fp) != NULL) {
             // 如果能获取到状态信息，则认为WiFi已启用
-            wifi_status_res_instance.data.enaable = (strstr(buffer, "COMPLETED") != NULL ||
+            wifi_status_res_instance.data.enable = (strstr(buffer, "COMPLETED") != NULL ||
                                                      strstr(buffer, "ASSOCIATED") != NULL ||
                                                      strstr(buffer, "ASSOCIATING") != NULL ||
                                                      strstr(buffer, "SCANNING") != NULL);
@@ -90,7 +90,7 @@ static wifi_error_t wifi_status_execution(void)
     }
 
     // 获取SSID
-    if (wifi_status_res_instance.data.enaable) {
+    if (wifi_status_res_instance.data.enable) {
         snprintf(command, sizeof(command), "wpa_cli -i %s status 2>/dev/null | grep '^ssid=' | cut -d= -f2", WIFI_DEVICE);
         fp = popen(command, "r");
         if (fp != NULL) {
@@ -202,7 +202,7 @@ void wifi_status(struct lws *wsi,size_t index,cJSON *root)
      *  "success": true,
      *  "error": 0,
      *  "data": {
-     *      "enaable": true,
+     *      "enable": true,
      *      "connected": true,
      *      "ssid": "test_wifi",
      *      "bssid": "xx:xx:xx:xx:xx:xx",
@@ -221,7 +221,7 @@ void wifi_status(struct lws *wsi,size_t index,cJSON *root)
     cJSON_AddBoolToObject(response, "success", wifi_status_res_instance.success);
     cJSON_AddNumberToObject(response, "error", wifi_status_res_instance.error);
     
-    cJSON_AddBoolToObject(res_data, "enaable", wifi_status_res_instance.data.enaable);
+    cJSON_AddBoolToObject(res_data, "enable", wifi_status_res_instance.data.enable);
     cJSON_AddBoolToObject(res_data, "connected", wifi_status_res_instance.data.connected);
     
     if (wifi_status_res_instance.data.ssid && strlen(wifi_status_res_instance.data.ssid) > 0) {
