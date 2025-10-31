@@ -6,6 +6,7 @@
 #include <libwebsockets.h>
 #include "lib/cJSON/cJSON.h"
 #include "wifi/wifi_scheduler.h"
+#include "brightness/brightness_scheduler.h"
 
 // ------------------------ 配置 ------------------------
 #define SERVER_PORT 8080
@@ -24,7 +25,7 @@ typedef struct
 
 static websocket_path_scheduling websocket_path_scheduling_table[] = {
     {"/wifi",wifi_scheduler},
-    {"/brightness",NULL},
+    {"/brightness",brightness_scheduler},
 };
 #define WEBSOCKET_PATH_SCHEDULING_TABLE_SIZE (sizeof(websocket_path_scheduling_table) / sizeof(websocket_path_scheduling))
 

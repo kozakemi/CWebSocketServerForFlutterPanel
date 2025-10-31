@@ -106,6 +106,7 @@
   "success": true,
   "error": 0,
   "data": {
+    "brightness": 80（可选）
   }
 }
 ```
@@ -118,7 +119,9 @@
   "request_id": "req-2",
   "success": false,
   "error": 2,
-  "data": {}
+  "data": {
+    "brightness": 80 （可选）
+  }
 }
 ```
 
@@ -219,8 +222,9 @@ typedef enum {
   "request_id": "req-brightness-1",
   "success": false,
   "error": 2,
-  "message": "亮度值超出有效范围",
-  "data": {}
+  "data": {
+    "brightness": 60
+  }
 }
 ```
 

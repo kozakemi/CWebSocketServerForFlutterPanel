@@ -40,15 +40,23 @@ brightness_dispatch *brightness_dispatch_get_by_inedx(size_t index)
  * @param index 调度项索引
  * @param root JSON根对象指针
  */
-void brightness_scheduler(struct lws *wsi,size_t index,cJSON *root)
+void brightness_scheduler(struct lws *wsi,cJSON *root)
 {
+    cJSON *type_item = cJSON_GetObjectItemCaseSensitive(root, "type");
+
+    if (!cJSON_IsString(type_item) || !type_item->valuestring)
+    {
+        fprintf(stderr, "缺少或无效的 'type' 字段\n");
+        return;
+    }
+
     for (size_t i = 0; i < BRIGHTNESS_DISPATCH_TABLE_SIZE; i++)
     {
-        if (strcmp(brightness_dispatch_table[i].request,root->string) == 0)
+        if (strcmp(type_item->valuestring,brightness_dispatch_table[i].request) == 0)
         {
             if (brightness_dispatch_table[i].handler != NULL)
             {
-                brightness_dispatch_table[i].handler(wsi,index,root);
+                brightness_dispatch_table[i].handler(wsi,i,root);
             }
             return;
         }

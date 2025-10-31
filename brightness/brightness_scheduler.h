@@ -12,5 +12,5 @@ typedef struct
     void (*handler)(struct lws *wsi,size_t index,cJSON *root);
 }brightness_dispatch;
 brightness_dispatch *brightness_dispatch_get_by_inedx(size_t index);
-void brightness_scheduler(struct lws *wsi,size_t index,cJSON *root);
+void brightness_scheduler(struct lws *wsi,cJSON *root);
 #endif

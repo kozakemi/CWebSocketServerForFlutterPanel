@@ -22,7 +22,8 @@ CFLAGS = -D_GNU_SOURCE \
 	-I./lib/cJSON \
 	-I/usr/include/libwebsockets\
 	-D_GNU_SOURCE \
-	-std=c99
+	-std=c99 \
+	-g -O0
 	
 LDFLAGS = -L./lib/cJSON/build -lwebsockets  -lm -lpthread -lrt
 
