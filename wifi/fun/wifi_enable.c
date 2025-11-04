@@ -49,79 +49,42 @@ wifi_enable_req wifi_enable_req_instance;
 wifi_enable_res wifi_enable_res_instance;
 
 /**
- * @brief 执行wifi开关操作
+ * @brief 启用或禁用Wi-Fi功能（不保证连接成功）
  *
- * @param is_enable true：开启，false：关闭
- * @return int
+ * @param is_enable true：启用Wi-Fi射频并允许连接；false：断开并禁用自动连接
+ * @return wifi_error_t WIFI_ERR_OK 表示操作成功，不代表已联网
  */
 static wifi_error_t wifi_enable_execution(bool is_enable)
 {
-    // 获取当前状态
-    FILE *fp;
-    char buffer[128];
-    bool current_state = false;
-
-    // 获取WiFi接口当前状态
     char command[256];
-    // 使用wpa_cli获取指定WiFi接口的状态信息，过滤出wpa_state字段的值
-    // wpa_cli -i {interface} status: 获取WiFi接口状态
-    // 2>/dev/null: 将错误输出重定向到空设备，避免显示错误信息
-    // grep wpa_state: 过滤出包含wpa_state的行
-    // cut -d= -f2: 以等号为分隔符，取出第二个字段（状态值）
-    snprintf(command, sizeof(command), "wpa_cli -i %s status 2>/dev/null | grep wpa_state | cut -d= -f2", WIFI_DEVICE);
+    int result;
 
-    fp = popen(command, "r");
-    if (fp != NULL)
+    if (is_enable)
     {
-        if (fgets(buffer, sizeof(buffer), fp) != NULL)
-        {
-            // 如果能获取到状态信息，则认为WiFi已启用
-            current_state = (strstr(buffer, "COMPLETED") != NULL ||
-                             strstr(buffer, "ASSOCIATED") != NULL ||
-                             strstr(buffer, "ASSOCIATING") != NULL ||
-                             strstr(buffer, "SCANNING") != NULL);
-        }
-        pclose(fp);
+        // 启用所有已保存的网络（允许自动连接）
+        snprintf(command, sizeof(command), "wpa_cli -i %s enable_network all", WIFI_DEVICE);
+        result = system(command);
+        if (result != 0) return WIFI_ERR_TOOL_ERROR;
+
+        // 触发重新连接（即使无网络也不报错）
+        snprintf(command, sizeof(command), "wpa_cli -i %s reconnect", WIFI_DEVICE);
+        result = system(command);
+        // 注意：reconnect 在无网络时也返回 0，这是正常的
+        if (result != 0) return WIFI_ERR_TOOL_ERROR;
+    }
+    else
+    {
+        // 禁用所有网络
+        snprintf(command, sizeof(command), "wpa_cli -i %s disable_network all", WIFI_DEVICE);
+        system(command); // 忽略返回值
+
+        // 断开当前连接
+        snprintf(command, sizeof(command), "wpa_cli -i %s disconnect", WIFI_DEVICE);
+        system(command);
     }
 
-    // 不等于当前状态
-    if (current_state != is_enable)
-    {
-        // 执行wifi开关操作
-        int result;
-        if (is_enable)
-        {
-            // 启用WiFi
-            // 重新配置wpa_supplicant，使其重新加载配置文件
-            snprintf(command, sizeof(command), "wpa_cli -i %s reconfigure", WIFI_DEVICE);
-            result = system(command);
-            if (result != 0)
-            {
-                return WIFI_ERR_TOOL_ERROR;
-            }
-        }
-        else
-        {
-            // 禁用WiFi
-            // 禁用所有网络配置
-            snprintf(command, sizeof(command), "wpa_cli -i %s disable_network all", WIFI_DEVICE);
-            system(command);
-            // 断开当前连接
-            snprintf(command, sizeof(command), "wpa_cli -i %s disconnect", WIFI_DEVICE);
-            result = system(command);
-        }
-
-        // 检查返回值
-        if (result != 0)
-        {
-            printf("wifi_enable: Failed to %s WiFi\n", is_enable ? "enable" : "disable");
-            return WIFI_ERR_TOOL_ERROR;
-        }
-    }
-
-    // 检查状态
-    printf("wifi_enable: %s WiFi\n", is_enable ? "enable" : "disable");
-    return WIFI_ERR_OK;
+    printf("wifi_enable: Wi-Fi %s\n", is_enable ? "enabled" : "disabled");
+    return WIFI_ERR_OK; // 操作成功，不管是否连上
 }
 
 /**
