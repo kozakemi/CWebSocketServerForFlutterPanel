@@ -1,0 +1,32 @@
+CWebSocketServerForFlutterPanel — 许可与致谢
+
+版权声明：
+Copyright 2025 kozakemi
+
+本项目采用 Apache License 2.0（详见根目录 `LICENSE`）。本 NOTICE 文件用于履行 Apache 2.0 第 4(d) 条的致谢与许可告知义务，并汇总第三方依赖的许可信息与合规说明。
+
+第三方依赖与许可：
+- libwebsockets — 许可：LGPL-2.1。
+  - 说明：本项目通过编译参数 `-lwebsockets` 动态链接系统提供的 `libwebsockets` 库。
+  - 合规要点：动态链接通常满足用户使用修改版库的权利（可通过替换运行时动态库实现）。请保留该库的许可与版权声明，并遵循 LGPL-2.1 要求。
+  - 参考：系统发行版许可文件（如 Debian 系统的 `/usr/share/doc/libwebsockets-dev/copyright`）或 https://libwebsockets.org/。
+
+- cJSON — 许可：MIT。
+  - 说明：源码包含于 `lib/cJSON/` 目录，保留其 `LICENSE` 文件与源文件头部的 MIT 许可声明。
+  - 参考：`lib/cJSON/LICENSE`、https://github.com/DaveGamble/cJSON。
+
+- wpa_supplicant（通过命令行工具 `wpa_cli` 间接使用）— 许可：GPLv2。
+  - 说明：本项目不分发该工具，仅作为系统运行时依赖调用。请按照系统提供者的分发许可要求使用。
+  - 参考：https://w1.fi/wpa_supplicant/。
+
+分发与合规提示：
+- 本项目源码与二进制按 Apache-2.0 许可分发；分发时请保留本 NOTICE 与第三方许可文件。
+- 对 `libwebsockets` 的合规：
+  - 若采用动态链接（当前默认）：用户可通过替换运行时动态库来使用修改版；请勿以技术手段阻止用户进行逆向或替换链接操作。
+  - 若改为静态链接：需要提供用于再链接的目标文件（可重定位的 `.o` 或同等方式），以使用户能够与其修改版库重新链接，或满足 LGPL 的等效要求。
+
+使用修改版 libwebsockets 的示例路径（仅作参考）：
+- 将自编译的 `libwebsockets.so` 安装到 `/usr/local/lib` 并执行 `ldconfig`，或在启动前设置 `LD_LIBRARY_PATH=/usr/local/lib` 以覆盖系统库搜索路径。
+- 运行本程序时将加载该自定义动态库，从而实现与修改版库的重新链接。
+
+本文件仅为合规摘要，不替代各许可证原文。分发与使用时请阅读并遵循上述各许可证的完整文本。
