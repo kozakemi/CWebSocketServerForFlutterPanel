@@ -14,7 +14,7 @@ Makefile.in
 Makefile.am
 
 # IDE相关
-.vscode/
+# .vscode/
 .idea/
 *.swp
 *.swo

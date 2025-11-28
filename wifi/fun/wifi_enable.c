@@ -14,17 +14,15 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
-#include <stdbool.h>
-#include <libwebsockets.h>
+#include "wifi_enable.h"
 #include "../../lib/cJSON/cJSON.h"
 #include "../wifi_def.h"
 #include "../wifi_scheduler.h"
-#include "wifi_enable.h"
-
-
+#include <libwebsockets.h>
+#include <stdbool.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
 
 /************* 请求 ***************/
 /**
@@ -80,13 +78,15 @@ static wifi_error_t wifi_enable_execution(bool is_enable)
         // 启用所有已保存的网络（允许自动连接）
         snprintf(command, sizeof(command), "wpa_cli -i %s enable_network all", WIFI_DEVICE);
         result = system(command);
-        if (result != 0) return WIFI_ERR_TOOL_ERROR;
+        if (result != 0)
+            return WIFI_ERR_TOOL_ERROR;
 
         // 触发重新连接（即使无网络也不报错）
         snprintf(command, sizeof(command), "wpa_cli -i %s reconnect", WIFI_DEVICE);
         result = system(command);
         // 注意：reconnect 在无网络时也返回 0，这是正常的
-        if (result != 0) return WIFI_ERR_TOOL_ERROR;
+        if (result != 0)
+            return WIFI_ERR_TOOL_ERROR;
     }
     else
     {
@@ -133,8 +133,8 @@ void wifi_enable(struct lws *wsi, size_t index, cJSON *root)
 
     // 根据执行结果构建响应数据
     wifi_enable_res_instance.type = wifi_dispatch_get_by_index(index)->response; // 使用响应类型
-    wifi_enable_res_instance.success = (ret == WIFI_ERR_OK);                     // 设置成功标志
-    wifi_enable_res_instance.error = ret;                                        // 设置错误码
+    wifi_enable_res_instance.success = (ret == WIFI_ERR_OK); // 设置成功标志
+    wifi_enable_res_instance.error = ret;                    // 设置错误码
     wifi_enable_res_instance.data.enable = wifi_enable_req_instance.data.enable; // 设置数据
     wifi_enable_res_instance.request_id = wifi_enable_req_instance.request_id;   // 回显request_id
 

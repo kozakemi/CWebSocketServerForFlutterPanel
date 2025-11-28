@@ -14,15 +14,16 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
-#include <stdbool.h>
-#include <libwebsockets.h>
+#include "wifi_scan.h"
 #include "../../lib/cJSON/cJSON.h"
 #include "../wifi_def.h"
 #include "../wifi_scheduler.h"
-#include "wifi_scan.h"
+#include <libwebsockets.h>
+#include <stdbool.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+
 
 /**
  * @brief wifi扫描错误枚举
@@ -31,9 +32,9 @@ limitations under the License.
 
 /**
  * @brief 解码UTF-8转义序列
- * 
+ *
  * 将形如 \xe4\xbc\x9a\xe8\xae\xae001 的转义序列转换为正确的UTF-8字符串
- * 
+ *
  * @param input 输入的包含转义序列的字符串
  * @param output 输出缓冲区
  * @param output_size 输出缓冲区大小
@@ -41,43 +42,49 @@ limitations under the License.
  */
 static int decode_utf8_escape_sequence(const char *input, char *output, size_t output_size)
 {
-    if (!input || !output || output_size == 0) {
+    if (!input || !output || output_size == 0)
+    {
         return -1;
     }
-    
+
     const char *src = input;
     char *dst = output;
     size_t dst_len = 0;
-    
-    while (*src && dst_len < output_size - 1) {
-        if (*src == '\\' && *(src + 1) == 'x' && 
-            src + 3 < input + strlen(input)) {
+
+    while (*src && dst_len < output_size - 1)
+    {
+        if (*src == '\\' && *(src + 1) == 'x' && src + 3 < input + strlen(input))
+        {
             // 检查是否是有效的十六进制转义序列
             char hex_str[3] = {src[2], src[3], '\0'};
             char *endptr;
             unsigned long hex_val = strtoul(hex_str, &endptr, 16);
-            
-            if (*endptr == '\0' && hex_val <= 0xFF) {
+
+            if (*endptr == '\0' && hex_val <= 0xFF)
+            {
                 // 有效的十六进制值，转换为字节
                 *dst++ = (char)hex_val;
                 dst_len++;
                 src += 4; // 跳过 \xXX
-            } else {
+            }
+            else
+            {
                 // 无效的转义序列，直接复制
                 *dst++ = *src++;
                 dst_len++;
             }
-        } else {
+        }
+        else
+        {
             // 普通字符，直接复制
             *dst++ = *src++;
             dst_len++;
         }
     }
-    
+
     *dst = '\0';
     return 0;
 }
-
 
 /************* 请求 ***************/
 
@@ -183,15 +190,16 @@ static wifi_error_t wifi_scan_execution(bool rescan)
         /**
          * neons@neonsboard:~/websocket_test$ sudo wpa_cli -i wlan0 scan_results
          * bssid / frequency / signal level / flags / ssid
-         * d4:35:38:ff:b5:ce       2462    -34     [WPA-PSK-CCMP+TKIP][WPA2-PSK-CCMP+TKIP][WPS][ESS]       Xiaomi_B5CD
-         * 16:9b:08:81:04:07       2437    -42     [WPA2-PSK-CCMP][ESS]    iPhone
+         * d4:35:38:ff:b5:ce       2462    -34     [WPA-PSK-CCMP+TKIP][WPA2-PSK-CCMP+TKIP][WPS][ESS]
+         * Xiaomi_B5CD 16:9b:08:81:04:07       2437    -42     [WPA2-PSK-CCMP][ESS]    iPhone
          *
          */
         // 如果需要更多空间
         if (count >= max_networks)
         {
             max_networks *= 2;
-            wifi_network_info *new_networks = realloc(temp_networks, sizeof(wifi_network_info) * max_networks);
+            wifi_network_info *new_networks =
+                realloc(temp_networks, sizeof(wifi_network_info) * max_networks);
             if (!new_networks)
             {
                 // 释放已分配的内存
@@ -245,12 +253,16 @@ static wifi_error_t wifi_scan_execution(bool rescan)
                         {
                             // 移除末尾的换行符
                             token[strcspn(token, "\n")] = 0;
-                            
+
                             // 处理SSID中的UTF-8转义字符
                             char decoded_ssid[128];
-                            if (decode_utf8_escape_sequence(token, decoded_ssid, sizeof(decoded_ssid)) == 0) {
+                            if (decode_utf8_escape_sequence(token, decoded_ssid,
+                                                            sizeof(decoded_ssid)) == 0)
+                            {
                                 strcpy(ssid, decoded_ssid);
-                            } else {
+                            }
+                            else
+                            {
                                 // 解码失败，使用原始字符串
                                 strcpy(ssid, token);
                             }
@@ -264,7 +276,8 @@ static wifi_error_t wifi_scan_execution(bool rescan)
                         temp_networks[count].frequency_mhz = frequency;
                         temp_networks[count].bssid = strdup(bssid);
                         temp_networks[count].signal = signal;
-                        temp_networks[count].ssid = strdup(ssid[0] ? ssid : "\\x00"); // 处理隐藏SSID
+                        temp_networks[count].ssid =
+                            strdup(ssid[0] ? ssid : "\\x00"); // 处理隐藏SSID
 
                         // 如果是空的，设为"Open"
                         if (strlen(security) == 0)
@@ -306,49 +319,62 @@ static wifi_error_t wifi_scan_execution(bool rescan)
     // 检查哪些网络已被记录
     snprintf(command, sizeof(command), "wpa_cli -i %s list_networks 2>/dev/null", WIFI_DEVICE);
     fp = popen(command, "r");
-    if (fp != NULL) {
+    if (fp != NULL)
+    {
         // 跳过标题行
         fgets(buffer, sizeof(buffer), fp);
-        
+
         // 解析已记录的网络
-        while (fgets(buffer, sizeof(buffer), fp) != NULL) {
+        while (fgets(buffer, sizeof(buffer), fp) != NULL)
+        {
             // 解析SSID字段（第2列）
             char *token = strtok(buffer, "\t");
-            if (token) {
+            if (token)
+            {
                 token = strtok(NULL, "\t"); // 跳过network id
-                if (token) {
+                if (token)
+                {
                     // 移除SSID末尾的换行符
                     token[strcspn(token, "\n")] = 0;
-                    
+
                     // 解码已记录网络的SSID
                     char decoded_recorded_ssid[128];
-                    if (decode_utf8_escape_sequence(token, decoded_recorded_ssid, sizeof(decoded_recorded_ssid)) == 0) {
+                    if (decode_utf8_escape_sequence(token, decoded_recorded_ssid,
+                                                    sizeof(decoded_recorded_ssid)) == 0)
+                    {
                         // 使用解码后的SSID进行比较
-                        for (size_t i = 0; i < count; i++) {
-                            if (strcmp(temp_networks[i].ssid, decoded_recorded_ssid) == 0) {
+                        for (size_t i = 0; i < count; i++)
+                        {
+                            if (strcmp(temp_networks[i].ssid, decoded_recorded_ssid) == 0)
+                            {
                                 temp_networks[i].recorded = true;
                                 break;
                             }
                         }
-                    } else {
+                    }
+                    else
+                    {
                         // 解码失败，使用原始字符串比较
-                        for (size_t i = 0; i < count; i++) {
-                             if (strcmp(temp_networks[i].ssid, token) == 0) {
-                                 temp_networks[i].recorded = true;
-                                 break;
-                             }
-                         }
-                     }
-                 }
-             }
-         }
+                        for (size_t i = 0; i < count; i++)
+                        {
+                            if (strcmp(temp_networks[i].ssid, token) == 0)
+                            {
+                                temp_networks[i].recorded = true;
+                                break;
+                            }
+                        }
+                    }
+                }
+            }
+        }
         pclose(fp);
     }
 
     // 调整到实际大小
     if (count > 0)
     {
-        wifi_network_info *final_networks = realloc(temp_networks, sizeof(wifi_network_info) * count);
+        wifi_network_info *final_networks =
+            realloc(temp_networks, sizeof(wifi_network_info) * count);
         if (final_networks)
         {
             temp_networks = final_networks;
@@ -426,12 +452,17 @@ void wifi_scan(struct lws *wsi, size_t index, cJSON *root)
     {
         cJSON *network_obj = cJSON_CreateObject();
         cJSON_AddStringToObject(network_obj, "ssid",
-                                (wifi_scan_res_instance.networks[i].ssid && strlen(wifi_scan_res_instance.networks[i].ssid) > 0) ? wifi_scan_res_instance.networks[i].ssid : "");
+                                (wifi_scan_res_instance.networks[i].ssid &&
+                                 strlen(wifi_scan_res_instance.networks[i].ssid) > 0)
+                                    ? wifi_scan_res_instance.networks[i].ssid
+                                    : "");
         cJSON_AddStringToObject(network_obj, "bssid", wifi_scan_res_instance.networks[i].bssid);
         cJSON_AddNumberToObject(network_obj, "signal", wifi_scan_res_instance.networks[i].signal);
-        cJSON_AddStringToObject(network_obj, "security", wifi_scan_res_instance.networks[i].security);
+        cJSON_AddStringToObject(network_obj, "security",
+                                wifi_scan_res_instance.networks[i].security);
         cJSON_AddNumberToObject(network_obj, "channel", wifi_scan_res_instance.networks[i].channel);
-        cJSON_AddNumberToObject(network_obj, "frequency_mhz", wifi_scan_res_instance.networks[i].frequency_mhz);
+        cJSON_AddNumberToObject(network_obj, "frequency_mhz",
+                                wifi_scan_res_instance.networks[i].frequency_mhz);
         cJSON_AddBoolToObject(network_obj, "recorded", wifi_scan_res_instance.networks[i].recorded);
         cJSON_AddItemToArray(networks_array, network_obj);
     }

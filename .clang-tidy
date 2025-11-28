@@ -1,0 +1,58 @@
+---
+Checks: '-*,misc-naming,readability-identifier-naming'
+
+WarningsAsErrors: ''
+HeaderFilterRegex: '.*'
+AnalyzeTemporaryDtors: false
+
+# 命名风格配置 - 下划线命名法
+CheckOptions:
+  - key: readability-identifier-naming.FunctionCase
+    value: lower_case
+  - key: readability-identifier-naming.FunctionPrefixHint
+    value: ''
+  - key: readability-identifier-naming.VariableCase
+    value: lower_case
+  - key: readability-identifier-naming.VariablePrefixHint
+    value: ''
+  - key: readability-identifier-naming.MemberCase
+    value: lower_case
+  - key: readability-identifier-naming.MemberPrefixHint
+    value: ''
+  - key: readability-identifier-naming.ParameterCase
+    value: lower_case
+  - key: readability-identifier-naming.ParameterPrefixHint
+    value: ''
+  - key: readability-identifier-naming.StructCase
+    value: lower_case
+  - key: readability-identifier-naming.StructPrefixHint
+    value: ''
+  - key: readability-identifier-naming.ClassCase
+    value: lower_case
+  - key: readability-identifier-naming.ClassPrefixHint
+    value: ''
+  - key: readability-identifier-naming.EnumCase
+    value: lower_case
+  - key: readability-identifier-naming.EnumPrefixHint
+    value: ''
+  - key: readability-identifier-naming.EnumConstantCase
+    value: upper_case
+  - key: readability-identifier-naming.EnumConstantPrefixHint
+    value: ''
+  - key: readability-identifier-naming.TypedefCase
+    value: lower_case
+  - key: readability-identifier-naming.TypedefPrefixHint
+    value: ''
+  - key: readability-identifier-naming.GlobalConstantCase
+    value: upper_case
+  - key: readability-identifier-naming.GlobalConstantPrefixHint
+    value: ''
+  - key: readability-identifier-naming.MacroDefinitionCase
+    value: upper_case
+  - key: readability-identifier-naming.MacroDefinitionPrefixHint
+    value: ''
+
+# 排除不检查的路径
+ExcludePaths:
+  - 'lib/cJSON/.*'
+...

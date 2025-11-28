@@ -1,0 +1,15 @@
+# 基本clang-format配置 - 兼容各版本
+Language: Cpp
+
+# 缩进设置
+IndentWidth: 4
+UseTab: Never
+
+# 大括号风格
+BreakBeforeBraces: Allman
+
+# 行长度
+ColumnLimit: 100
+
+# 控制语句缩进
+IndentCaseLabels: true
