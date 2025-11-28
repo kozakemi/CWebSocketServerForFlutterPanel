@@ -242,7 +242,7 @@ static wifi_error_t wifi_scan_execution(bool rescan)
                         char *security_start = token;
                         // if (security_start[0] == '[')
                         //     security_start++;
-                        char *security_end = security_start + strlen(security_start) - 1;
+                        // char *security_end = security_start + strlen(security_start) - 1;
                         // if (security_end > security_start && *security_end == ']')
                         //     *security_end = '\0';
                         strcpy(security, security_start);

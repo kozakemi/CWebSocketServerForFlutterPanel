@@ -17,5 +17,6 @@ limitations under the License.
 #ifndef __WIFI_CONNECT_H__
 #define __WIFI_CONNECT_H__
 #include "../../lib/cJSON/cJSON.h"
+#include <libwebsockets.h>
 void wifi_connect(struct lws *wsi, size_t index, cJSON *root);
 #endif

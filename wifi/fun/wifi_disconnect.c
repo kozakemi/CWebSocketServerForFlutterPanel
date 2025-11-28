@@ -59,7 +59,7 @@ static wifi_error_t wifi_disconnect_execution(void)
     FILE *fp;
     char buffer[256];
     char command[256];
-    int network_id = -1;
+    // int network_id = -1;
     bool is_connected = false;
 
     // 检查当前是否连接到任何网络

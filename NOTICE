@@ -30,3 +30,40 @@ Copyright 2025 kozakemi
 - 运行本程序时将加载该自定义动态库，从而实现与修改版库的重新链接。
 
 本文件仅为合规摘要，不替代各许可证原文。分发与使用时请阅读并遵循上述各许可证的完整文本。
+
+
+==============================
+English Version (Appendix)
+==============================
+
+CWebSocketServerForFlutterPanel — License and Notices
+
+Copyright 2025 kozakemi
+
+This project is licensed under the Apache License, Version 2.0 (see `LICENSE` at the repository root). This NOTICE file is provided to satisfy the acknowledgment and license notice obligations under Apache 2.0 Section 4(d), and to summarize third‑party dependencies and compliance notes.
+
+Third‑Party Dependencies and Licenses:
+- libwebsockets — License: LGPL‑2.1.
+  - Note: The project dynamically links the system‑provided `libwebsockets` via the compiler/linker flag `-lwebsockets`.
+  - Compliance: Dynamic linking generally preserves the user’s right to use a modified version of the library (by replacing the runtime shared object). Keep the library’s license and copyright notices, and comply with LGPL‑2.1.
+  - Reference: Distribution license documents (e.g., Debian `/usr/share/doc/libwebsockets-dev/copyright`) or https://libwebsockets.org/.
+
+- cJSON — License: MIT.
+  - Note: Source code is included in `lib/cJSON/`; keep its `LICENSE` file and the MIT license headers in source files.
+  - Reference: `lib/cJSON/LICENSE`, https://github.com/DaveGamble/cJSON.
+
+- wpa_supplicant (used via the `wpa_cli` command‑line tool) — License: GPLv2.
+  - Note: This project does not distribute `wpa_supplicant`; it is used as a runtime dependency provided by the system. Follow the distribution license terms from the system provider.
+  - Reference: https://w1.fi/wpa_supplicant/.
+
+Distribution and Compliance Tips:
+- Project source and binaries are distributed under Apache‑2.0; retain this NOTICE and third‑party license files in distributions.
+- For `libwebsockets` compliance:
+  - If dynamically linked (current default): Users may replace the runtime shared library to use their modified version; do not employ technical measures that prevent reverse engineering or library replacement for relinking.
+  - If statically linked: Provide relinkable object files (e.g., `.o`) or an equivalent mechanism to enable relinking against a modified library, satisfying LGPL obligations.
+
+Examples of using a modified `libwebsockets` (for illustration only):
+- Install a custom `libwebsockets.so` to `/usr/local/lib` and run `ldconfig`, or set `LD_LIBRARY_PATH=/usr/local/lib` prior to launching the program to override the system library search path.
+- At runtime, the program will load the custom shared library, effectively relinking to the modified version.
+
+This file is a compliance summary and does not replace the full license texts. Please read and follow the complete licenses when distributing or using this software.

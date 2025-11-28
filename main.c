@@ -97,7 +97,7 @@ static int callback_server(struct lws *wsi, enum lws_callback_reasons reason, vo
 
             // 根据路径查找对应的调度器
             int found = 0;
-            for (int i = 0; i < WEBSOCKET_PATH_SCHEDULING_TABLE_SIZE; i++)
+            for (size_t i = 0; i < WEBSOCKET_PATH_SCHEDULING_TABLE_SIZE; i++)
             {
                 if (strcmp(pss->path, websocket_path_scheduling_table[i].patch) == 0)
                 {
