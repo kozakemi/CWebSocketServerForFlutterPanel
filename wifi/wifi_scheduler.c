@@ -62,10 +62,9 @@ wifi_dispatch *wifi_dispatch_get_by_index(size_t index)
  * @details 不需要释放root，外层释放
  *
  * @param wsi
- * @param index
  * @param root
  */
-void wifi_scheduler(struct lws *wsi, size_t index, cJSON *root)
+void wifi_scheduler(struct lws *wsi, cJSON *root)
 {
     cJSON *type_item = cJSON_GetObjectItemCaseSensitive(root, "type");
 
