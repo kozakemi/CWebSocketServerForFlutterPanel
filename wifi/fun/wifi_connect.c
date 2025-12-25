@@ -18,6 +18,7 @@ limitations under the License.
 #include "../../lib/cJSON/cJSON.h"
 #include "../wifi_def.h"
 #include "../wifi_scheduler.h"
+#include "../../ws_utils.h"
 #include <libwebsockets.h>
 #include <stdbool.h>
 #include <stdio.h>
@@ -221,16 +222,35 @@ void wifi_connect(struct lws *wsi, size_t index, cJSON *root)
      *
      */
     cJSON *type = cJSON_GetObjectItem(root, "type");
-    wifi_connect_req_instance.type = type->valuestring;
+    wifi_connect_req_instance.type = (cJSON_IsString(type) && type->valuestring) ? type->valuestring : NULL;
     cJSON *request_id = cJSON_GetObjectItem(root, "request_id");
-    wifi_connect_req_instance.request_id = request_id->valuestring;
-    cJSON *data = cJSON_GetObjectItem(root, "data");
-    wifi_connect_req_instance.data.ssid = cJSON_GetObjectItem(data, "ssid")->valuestring;
-    wifi_connect_req_instance.data.password = cJSON_GetObjectItem(data, "password")->valuestring;
-    wifi_connect_req_instance.data.timeout_ms = cJSON_GetObjectItem(data, "timeout_ms")->valueint;
+    wifi_connect_req_instance.request_id =
+        (cJSON_IsString(request_id) && request_id->valuestring) ? request_id->valuestring : "";
 
-    // 处理请求
-    ret = wifi_connect_execution();
+    cJSON *data = cJSON_GetObjectItem(root, "data");
+    cJSON *ssid_item = data ? cJSON_GetObjectItem(data, "ssid") : NULL;
+    cJSON *password_item = data ? cJSON_GetObjectItem(data, "password") : NULL;
+    cJSON *timeout_item = data ? cJSON_GetObjectItem(data, "timeout_ms") : NULL;
+
+    if (!ssid_item || !cJSON_IsString(ssid_item) || !ssid_item->valuestring)
+    {
+        ret = WIFI_ERR_BAD_REQUEST;
+        wifi_connect_req_instance.data.ssid = NULL;
+        wifi_connect_req_instance.data.password = NULL;
+        wifi_connect_req_instance.data.timeout_ms = 20000;
+    }
+    else
+    {
+        wifi_connect_req_instance.data.ssid = ssid_item->valuestring;
+        wifi_connect_req_instance.data.password =
+            (password_item && cJSON_IsString(password_item) && password_item->valuestring)
+                ? password_item->valuestring
+                : NULL;
+        wifi_connect_req_instance.data.timeout_ms =
+            (timeout_item && cJSON_IsNumber(timeout_item)) ? timeout_item->valueint : 20000;
+        // 处理请求
+        ret = wifi_connect_execution();
+    }
 
     /**
      * {
@@ -271,9 +291,7 @@ void wifi_connect(struct lws *wsi, size_t index, cJSON *root)
     else
     {
         printf("wifi_connect: %s\n", response_str);
-        unsigned char buf[LWS_PRE + strlen(response_str)];
-        memcpy(&buf[LWS_PRE], response_str, strlen(response_str));
-        int n = lws_write(wsi, &buf[LWS_PRE], strlen(response_str), LWS_WRITE_TEXT);
+        int n = ws_send_text(wsi, response_str);
         if (n < 0)
         {
             printf("wifi_connect: Failed to write response\n");

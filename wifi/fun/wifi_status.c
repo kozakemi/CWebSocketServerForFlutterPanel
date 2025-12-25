@@ -18,6 +18,7 @@ limitations under the License.
 #include "../../lib/cJSON/cJSON.h"
 #include "../wifi_def.h"
 #include "../wifi_scheduler.h"
+#include "../../ws_utils.h"
 #include <libwebsockets.h>
 #include <stdbool.h>
 #include <stdio.h>
@@ -219,9 +220,10 @@ void wifi_status(struct lws *wsi, size_t index, cJSON *root)
     int ret = 0;
     // { "type": "wifi_status_request", "data": {} }
     cJSON *type = cJSON_GetObjectItem(root, "type");
-    wifi_status_req_instance.type = type->valuestring;
+    wifi_status_req_instance.type = (cJSON_IsString(type) && type->valuestring) ? type->valuestring : NULL;
     cJSON *request_id = cJSON_GetObjectItem(root, "request_id");
-    wifi_status_req_instance.request_id = request_id->valuestring;
+    wifi_status_req_instance.request_id =
+        (cJSON_IsString(request_id) && request_id->valuestring) ? request_id->valuestring : "";
 
     ret = wifi_status_execution(); // 执行状态获取操作
 
@@ -315,9 +317,7 @@ void wifi_status(struct lws *wsi, size_t index, cJSON *root)
     else
     {
         printf("wifi_status: %s\n", response_str);
-        unsigned char buf[LWS_PRE + strlen(response_str)];
-        memcpy(&buf[LWS_PRE], response_str, strlen(response_str));
-        int n = lws_write(wsi, &buf[LWS_PRE], strlen(response_str), LWS_WRITE_TEXT);
+        int n = ws_send_text(wsi, response_str);
         if (n < 0)
         {
             printf("wifi_status: Failed to write response\n");

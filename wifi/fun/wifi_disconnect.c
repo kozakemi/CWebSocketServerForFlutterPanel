@@ -18,6 +18,7 @@ limitations under the License.
 #include "../../lib/cJSON/cJSON.h"
 #include "../wifi_def.h"
 #include "../wifi_scheduler.h"
+#include "../../ws_utils.h"
 #include <libwebsockets.h>
 #include <stdbool.h>
 #include <stdio.h>
@@ -91,7 +92,8 @@ static wifi_error_t wifi_disconnect_execution(void)
     {
 
         // 获取当前连接的SSID
-        char current_ssid[128] = {0};
+        // 使用更大的缓冲区，避免截断告警，同时仍确保 NUL 结尾
+        char current_ssid[256] = {0};
         snprintf(command, sizeof(command),
                  "wpa_cli -i %s status 2>/dev/null | grep '^ssid=' | head -1 | cut -d= -f2",
                  WIFI_DEVICE);
@@ -103,7 +105,8 @@ static wifi_error_t wifi_disconnect_execution(void)
             {
                 // 移除换行符
                 buffer[strcspn(buffer, "\n")] = 0;
-                strcpy(current_ssid, buffer);
+                // 防止超长 SSID 导致缓冲区溢出
+                snprintf(current_ssid, sizeof(current_ssid), "%s", buffer);
             }
             pclose(fp);
         }
@@ -138,16 +141,19 @@ void wifi_disconnect(struct lws *wsi, size_t index, cJSON *root)
      * { "type": "wifi_disconnect_request", "data": { "ssid": "MyHomeNetwork" } }
      */
     cJSON *type = cJSON_GetObjectItem(root, "type");
-    wifi_disconnect_req_instance.type = type->valuestring;
+    wifi_disconnect_req_instance.type =
+        (cJSON_IsString(type) && type->valuestring) ? type->valuestring : NULL;
 
     cJSON *request_id = cJSON_GetObjectItem(root, "request_id");
-    wifi_disconnect_req_instance.request_id = request_id->valuestring;
+    wifi_disconnect_req_instance.request_id =
+        (cJSON_IsString(request_id) && request_id->valuestring) ? request_id->valuestring : "";
 
     cJSON *data = cJSON_GetObjectItem(root, "data");
     cJSON *ssid_item = cJSON_GetObjectItem(data, "ssid");
     if (ssid_item)
     {
-        wifi_disconnect_req_instance.data.ssid = ssid_item->valuestring;
+        wifi_disconnect_req_instance.data.ssid =
+            (cJSON_IsString(ssid_item) && ssid_item->valuestring) ? ssid_item->valuestring : NULL;
     }
     else
     {
@@ -193,9 +199,7 @@ void wifi_disconnect(struct lws *wsi, size_t index, cJSON *root)
     else
     {
         printf("wifi_disconnect: %s\n", response_str);
-        unsigned char buf[LWS_PRE + strlen(response_str)];
-        memcpy(&buf[LWS_PRE], response_str, strlen(response_str));
-        int n = lws_write(wsi, &buf[LWS_PRE], strlen(response_str), LWS_WRITE_TEXT);
+        int n = ws_send_text(wsi, response_str);
         if (n < 0)
         {
             printf("wifi_disconnect: Failed to write response\n");

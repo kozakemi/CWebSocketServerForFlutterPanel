@@ -18,6 +18,7 @@ limitations under the License.
 #include "../../lib/cJSON/cJSON.h"
 #include "../wifi_def.h"
 #include "../wifi_scheduler.h"
+#include "../../ws_utils.h"
 #include <libwebsockets.h>
 #include <stdbool.h>
 #include <stdio.h>
@@ -245,7 +246,8 @@ static wifi_error_t wifi_scan_execution(bool rescan)
                         // char *security_end = security_start + strlen(security_start) - 1;
                         // if (security_end > security_start && *security_end == ']')
                         //     *security_end = '\0';
-                        strcpy(security, security_start);
+                        // 防止超长字段导致缓冲区溢出
+                        snprintf(security, sizeof(security), "%s", security_start);
 
                         // SSID是最后一个字段
                         token = strtok(NULL, "\t");
@@ -259,12 +261,12 @@ static wifi_error_t wifi_scan_execution(bool rescan)
                             if (decode_utf8_escape_sequence(token, decoded_ssid,
                                                             sizeof(decoded_ssid)) == 0)
                             {
-                                strcpy(ssid, decoded_ssid);
+                                snprintf(ssid, sizeof(ssid), "%s", decoded_ssid);
                             }
                             else
                             {
                                 // 解码失败，使用原始字符串
-                                strcpy(ssid, token);
+                                snprintf(ssid, sizeof(ssid), "%s", token);
                             }
                         }
                         else
@@ -405,12 +407,14 @@ void wifi_scan(struct lws *wsi, size_t index, cJSON *root)
 
     // { "type": "wifi_scan_request", "data": { "rescan": true } }
     cJSON *type = cJSON_GetObjectItem(root, "type");
-    wifi_scan_req_instance.type = type->valuestring;
+    wifi_scan_req_instance.type = (cJSON_IsString(type) && type->valuestring) ? type->valuestring : NULL;
     cJSON *request_id = cJSON_GetObjectItem(root, "request_id");
-    wifi_scan_req_instance.request_id = request_id->valuestring;
+    wifi_scan_req_instance.request_id =
+        (cJSON_IsString(request_id) && request_id->valuestring) ? request_id->valuestring : "";
 
     cJSON *data = cJSON_GetObjectItem(root, "data");
-    wifi_scan_req_instance.rescan = cJSON_IsTrue(cJSON_GetObjectItem(data, "rescan"));
+    cJSON *rescan_item = data ? cJSON_GetObjectItem(data, "rescan") : NULL;
+    wifi_scan_req_instance.rescan = (rescan_item && cJSON_IsBool(rescan_item)) ? cJSON_IsTrue(rescan_item) : false;
 
     ret = wifi_scan_execution(wifi_scan_req_instance.rescan); // 执行扫描操作
 
@@ -480,9 +484,7 @@ void wifi_scan(struct lws *wsi, size_t index, cJSON *root)
     else
     {
         printf("wifi_scan: %s\n", response_str);
-        unsigned char buf[LWS_PRE + strlen(response_str)];
-        memcpy(&buf[LWS_PRE], response_str, strlen(response_str));
-        int n = lws_write(wsi, &buf[LWS_PRE], strlen(response_str), LWS_WRITE_TEXT);
+        int n = ws_send_text(wsi, response_str);
         if (n < 0)
         {
             printf("wifi_scan: Failed to write response\n");

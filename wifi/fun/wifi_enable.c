@@ -18,6 +18,7 @@ limitations under the License.
 #include "../../lib/cJSON/cJSON.h"
 #include "../wifi_def.h"
 #include "../wifi_scheduler.h"
+#include "../../ws_utils.h"
 #include <libwebsockets.h>
 #include <stdbool.h>
 #include <stdio.h>
@@ -122,14 +123,23 @@ void wifi_enable(struct lws *wsi, size_t index, cJSON *root)
      * }
      */
     cJSON *type = cJSON_GetObjectItem(root, "type");
-    wifi_enable_req_instance.type = type->valuestring;
+    wifi_enable_req_instance.type = (cJSON_IsString(type) && type->valuestring) ? type->valuestring : NULL;
     cJSON *request_id = cJSON_GetObjectItem(root, "request_id");
-    wifi_enable_req_instance.request_id = request_id->valuestring;
+    wifi_enable_req_instance.request_id =
+        (cJSON_IsString(request_id) && request_id->valuestring) ? request_id->valuestring : "";
     cJSON *data = cJSON_GetObjectItem(root, "data");
-    wifi_enable_req_instance.data.enable = cJSON_IsTrue(cJSON_GetObjectItem(data, "enable"));
-
-    // 执行wifi开关操作
-    ret = wifi_enable_execution(wifi_enable_req_instance.data.enable);
+    cJSON *enable_item = data ? cJSON_GetObjectItem(data, "enable") : NULL;
+    if (!enable_item || !cJSON_IsBool(enable_item))
+    {
+        ret = WIFI_ERR_BAD_REQUEST;
+        wifi_enable_req_instance.data.enable = false;
+    }
+    else
+    {
+        wifi_enable_req_instance.data.enable = cJSON_IsTrue(enable_item);
+        // 执行wifi开关操作
+        ret = wifi_enable_execution(wifi_enable_req_instance.data.enable);
+    }
 
     // 根据执行结果构建响应数据
     wifi_enable_res_instance.type = wifi_dispatch_get_by_index(index)->response; // 使用响应类型
@@ -165,9 +175,7 @@ void wifi_enable(struct lws *wsi, size_t index, cJSON *root)
     else
     {
         printf("wifi_enable: %s\n", response_str);
-        unsigned char buf[LWS_PRE + strlen(response_str)];
-        memcpy(&buf[LWS_PRE], response_str, strlen(response_str));
-        int n = lws_write(wsi, &buf[LWS_PRE], strlen(response_str), LWS_WRITE_TEXT);
+        int n = ws_send_text(wsi, response_str);
         if (n < 0)
         {
             printf("wifi_enable: Failed to write response\n");

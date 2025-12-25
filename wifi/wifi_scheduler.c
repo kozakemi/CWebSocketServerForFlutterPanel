@@ -49,7 +49,8 @@ wifi_dispatch wifi_dispatch_table[] = {
  */
 wifi_dispatch *wifi_dispatch_get_by_index(size_t index)
 {
-    if (index > wifi_dispatch_table_LEN)
+    // index is 0..LEN-1; LEN is out-of-bounds
+    if (index >= wifi_dispatch_table_LEN)
     {
         return NULL;
     }
