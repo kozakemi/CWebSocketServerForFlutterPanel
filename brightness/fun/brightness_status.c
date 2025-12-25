@@ -17,6 +17,7 @@ limitations under the License.
 #include "../../lib/cJSON/cJSON.h"
 #include "../brightness_def.h"
 #include "../brightness_scheduler.h"
+#include "../../ws_utils.h"
 #include <errno.h>
 #include <libwebsockets.h>
 #include <stdbool.h>
@@ -115,9 +116,11 @@ void brightness_status(struct lws *wsi, size_t index, cJSON *root)
     int ret = 0;
     // 解析请求 { "type": "brightness_status_request", "request_id": "req-1", "data": {} }
     cJSON *type = cJSON_GetObjectItem(root, "type");
-    brightness_status_req_instance.type = type->valuestring;
+    brightness_status_req_instance.type =
+        (cJSON_IsString(type) && type->valuestring) ? type->valuestring : NULL;
     cJSON *request_id = cJSON_GetObjectItem(root, "request_id");
-    brightness_status_req_instance.request_id = request_id->valuestring;
+    brightness_status_req_instance.request_id =
+        (cJSON_IsString(request_id) && request_id->valuestring) ? request_id->valuestring : "";
 
     // 执行请求
     ret = brightness_status_execution();
@@ -156,9 +159,7 @@ void brightness_status(struct lws *wsi, size_t index, cJSON *root)
     else
     {
         printf("brightness_status: %s\n", response_str);
-        unsigned char buf[LWS_PRE + strlen(response_str)];
-        memcpy(&buf[LWS_PRE], response_str, strlen(response_str));
-        int n = lws_write(wsi, &buf[LWS_PRE], strlen(response_str), LWS_WRITE_TEXT);
+        int n = ws_send_text(wsi, response_str);
         if (n < 0)
         {
             printf("brightness_status: Failed to write response\n");

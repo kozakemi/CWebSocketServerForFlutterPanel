@@ -16,6 +16,7 @@ limitations under the License.
 
 #include "brightness/brightness_scheduler.h"
 #include "lib/cJSON/cJSON.h"
+#include "ws_utils.h"
 #include "wifi/wifi_scheduler.h"
 #include <libwebsockets.h>
 #include <pthread.h>
@@ -89,9 +90,7 @@ static int callback_server(struct lws *wsi, enum lws_callback_reasons reason, vo
                 // 发送解析错误响应
                 const char *err_resp = "{\"data\": {\"success\": false, \"message\": \"Invalid "
                                        "JSON format\", \"error\": \"JSON_PARSE_ERROR\"}}";
-                unsigned char buf[LWS_PRE + strlen(err_resp)];
-                memcpy(&buf[LWS_PRE], err_resp, strlen(err_resp));
-                lws_write(wsi, &buf[LWS_PRE], strlen(err_resp), LWS_WRITE_TEXT);
+                ws_send_text(wsi, err_resp);
                 break;
             }
 
@@ -113,9 +112,7 @@ static int callback_server(struct lws *wsi, enum lws_callback_reasons reason, vo
                         // 发送未实现响应
                         const char *not_impl_resp = "{\"success\": false, \"error\": -1, "
                                                     "\"message\": \"功能尚未实现\", \"data\": {}}";
-                        unsigned char buf[LWS_PRE + strlen(not_impl_resp)];
-                        memcpy(&buf[LWS_PRE], not_impl_resp, strlen(not_impl_resp));
-                        lws_write(wsi, &buf[LWS_PRE], strlen(not_impl_resp), LWS_WRITE_TEXT);
+                        ws_send_text(wsi, not_impl_resp);
                     }
                     break;
                 }
@@ -127,9 +124,7 @@ static int callback_server(struct lws *wsi, enum lws_callback_reasons reason, vo
                 // 发送路径不支持响应
                 const char *unsupported_resp = "{\"success\": false, \"error\": -1, \"message\": "
                                                "\"不支持的路径\", \"data\": {}}";
-                unsigned char buf[LWS_PRE + strlen(unsupported_resp)];
-                memcpy(&buf[LWS_PRE], unsupported_resp, strlen(unsupported_resp));
-                lws_write(wsi, &buf[LWS_PRE], strlen(unsupported_resp), LWS_WRITE_TEXT);
+                ws_send_text(wsi, unsupported_resp);
             }
 
             // 释放解析的 JSON 树
@@ -159,7 +154,12 @@ static struct lws_protocols protocols[] = {
         .per_session_data_size = sizeof(struct per_session_data),
         .rx_buffer_size = 1024,
     },
-    {NULL, NULL, 0, 0}};
+    {
+        .name = NULL,
+        .callback = NULL,
+        .per_session_data_size = 0,
+        .rx_buffer_size = 0,
+    }};
 
 int main(void)
 {

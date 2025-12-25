@@ -17,6 +17,7 @@ limitations under the License.
 #include "../../lib/cJSON/cJSON.h"
 #include "../brightness_def.h"
 #include "../brightness_scheduler.h"
+#include "../../ws_utils.h"
 #include <errno.h>
 #include <libwebsockets.h>
 #include <stdbool.h>
@@ -186,9 +187,7 @@ void brightness_set(struct lws *wsi, size_t index, cJSON *root)
         return;
     }
     printf("brightness_set: %s\n", response_str);
-    unsigned char buf[LWS_PRE + strlen(response_str)];
-    memcpy(&buf[LWS_PRE], response_str, strlen(response_str));
-    int n = lws_write(wsi, &buf[LWS_PRE], strlen(response_str), LWS_WRITE_TEXT);
+    int n = ws_send_text(wsi, response_str);
     if (n < 0)
     {
         printf("brightness_set: Failed to write response\n");

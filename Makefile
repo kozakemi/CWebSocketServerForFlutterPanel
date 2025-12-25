@@ -2,6 +2,7 @@
 
 TARGET = main
 SRC = main.c \
+	ws_utils.c \
 	./lib/cJSON/cJSON.c \
 	./wifi/wifi_scheduler.c \
 	./wifi/fun/wifi_enable.c \
