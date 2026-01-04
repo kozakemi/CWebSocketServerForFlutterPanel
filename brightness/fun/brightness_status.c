@@ -14,12 +14,12 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-#include "../../lib/cJSON/cJSON.h"
+#include "cJSON.h"
 #include "../brightness_def.h"
 #include "../brightness_scheduler.h"
 #include "../../ws_utils.h"
 #include <errno.h>
-#include <libwebsockets.h>
+#include "civetweb.h"
 #include <stdbool.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -111,7 +111,7 @@ static brightness_error_t brightness_status_execution(void)
  * @param index 调度索引
  * @param root JSON 根对象指针
  */
-void brightness_status(struct lws *wsi, size_t index, cJSON *root)
+void brightness_status(struct mg_connection *conn, size_t index, cJSON *root)
 {
     int ret = 0;
     // 解析请求 { "type": "brightness_status_request", "request_id": "req-1", "data": {} }
@@ -159,7 +159,7 @@ void brightness_status(struct lws *wsi, size_t index, cJSON *root)
     else
     {
         printf("brightness_status: %s\n", response_str);
-        int n = ws_send_text(wsi, response_str);
+        int n = ws_send_text(conn, response_str);
         if (n < 0)
         {
             printf("brightness_status: Failed to write response\n");

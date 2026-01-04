@@ -16,7 +16,7 @@ limitations under the License.
 
 #ifndef __WIFI_ENABLE_H__
 #define __WIFI_ENABLE_H__
-#include "../../lib/cJSON/cJSON.h"
-#include <libwebsockets.h>
-void wifi_enable(struct lws *wsi, size_t index, cJSON *root);
+#include "cJSON.h"
+#include "civetweb.h"
+void wifi_enable(struct mg_connection *conn, size_t index, cJSON *root);
 #endif

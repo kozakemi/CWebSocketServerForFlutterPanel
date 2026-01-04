@@ -15,20 +15,23 @@ limitations under the License.
 */
 
 #include "brightness/brightness_scheduler.h"
-#include "lib/cJSON/cJSON.h"
+#include "cJSON.h"
 #include "ws_utils.h"
 #include "wifi/wifi_scheduler.h"
-#include <libwebsockets.h>
+#include "civetweb.h"
 #include <pthread.h>
 #include <stddef.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <signal.h>
+#include <unistd.h>
 
 // ------------------------ 配置 ------------------------
 #define SERVER_PORT 8080
 // ----------------------------------------------------
 
+// 用户连接数据
 struct per_session_data
 {
     char path[256]; // 存储WebSocket连接的路径
@@ -37,7 +40,7 @@ struct per_session_data
 typedef struct
 {
     char *patch;
-    void (*scheduler)(struct lws *wsi, cJSON *root);
+    void (*scheduler)(struct mg_connection *conn, cJSON *root);
 } websocket_path_scheduling;
 
 static websocket_path_scheduling websocket_path_scheduling_table[] = {
@@ -47,41 +50,75 @@ static websocket_path_scheduling websocket_path_scheduling_table[] = {
 #define WEBSOCKET_PATH_SCHEDULING_TABLE_SIZE                                                       \
     (sizeof(websocket_path_scheduling_table) / sizeof(websocket_path_scheduling))
 
-/**
- * @brief ws服务器回调函数
- *
- * @param wsi
- * @param reason
- * @param user
- * @param in
- * @param len
- * @return int
- */
-static int callback_server(struct lws *wsi, enum lws_callback_reasons reason, void *user, void *in,
-                           size_t len)
-{
-    struct per_session_data *pss = (struct per_session_data *)user;
+// 全局服务器上下文
+static struct mg_context *g_ctx = NULL;
+volatile int g_exit = 0;
 
-    switch (reason)
+/* WebSocket 连接处理器：客户端尝试建立连接时调用 */
+static int ws_connect_handler(const struct mg_connection *conn, void *user_data)
+{
+    (void)user_data; /* unused */
+    
+    // 分配连接数据
+    struct per_session_data *pss = (struct per_session_data *)calloc(1, sizeof(struct per_session_data));
+    if (!pss)
     {
-        case LWS_CALLBACK_ESTABLISHED:
-        {
-            // 获取WebSocket连接的路径
-            int path_len = lws_hdr_copy(wsi, pss->path, sizeof(pss->path), WSI_TOKEN_GET_URI);
-            if (path_len < 0)
+        return 1; // 拒绝连接
+    }
+    
+    // 获取请求路径
+    const struct mg_request_info *ri = mg_get_request_info(conn);
+    if (ri && ri->local_uri)
+    {
+        strncpy(pss->path, ri->local_uri, sizeof(pss->path) - 1);
+        pss->path[sizeof(pss->path) - 1] = '\0';
+    }
+    else
             {
                 strcpy(pss->path, "/"); // 默认路径
             }
+    
+    // 设置用户数据（注意：需要将 const 转换为非 const）
+    mg_set_user_connection_data((struct mg_connection *)conn, pss);
+    
             printf("客户端连接已建立，路径: %s\n", pss->path);
-            break;
+    return 0; // 接受连接
+}
+
+/* WebSocket 就绪处理器：握手完成后调用 */
+static void ws_ready_handler(struct mg_connection *conn, void *user_data)
+{
+    (void)conn; /* unused */
+    (void)user_data; /* unused */
+    printf("WebSocket 连接就绪\n");
         }
 
-        case LWS_CALLBACK_RECEIVE:
-        {
-            printf("收到消息 (长度 %zu): %.*s\n", len, (int)len, (char *)in);
+/* WebSocket 数据处理器：收到数据时调用 */
+static int ws_data_handler(struct mg_connection *conn,
+                            int opcode,
+                            char *data,
+                            size_t datasize,
+                            void *user_data)
+{
+    (void)user_data; /* unused */
+    
+    // 只处理文本消息
+    if ((opcode & 0xf) != MG_WEBSOCKET_OPCODE_TEXT)
+    {
+        return 1; // 保持连接
+    }
+    
+    printf("收到消息 (长度 %zu): %.*s\n", datasize, (int)datasize, data);
+    
+    // 获取连接数据
+    struct per_session_data *pss = (struct per_session_data *)mg_get_user_connection_data(conn);
+    if (!pss)
+    {
+        return 0; // 关闭连接
+    }
 
             // 使用 cJSON 解析 JSON
-            cJSON *root = cJSON_ParseWithLength((char *)in, len);
+    cJSON *root = cJSON_ParseWithLength(data, datasize);
             if (!root)
             {
                 const char *error_ptr = cJSON_GetErrorPtr();
@@ -90,8 +127,8 @@ static int callback_server(struct lws *wsi, enum lws_callback_reasons reason, vo
                 // 发送解析错误响应
                 const char *err_resp = "{\"data\": {\"success\": false, \"message\": \"Invalid "
                                        "JSON format\", \"error\": \"JSON_PARSE_ERROR\"}}";
-                ws_send_text(wsi, err_resp);
-                break;
+        ws_send_text(conn, err_resp);
+        return 1; // 保持连接
             }
 
             // 根据路径查找对应的调度器
@@ -104,7 +141,7 @@ static int callback_server(struct lws *wsi, enum lws_callback_reasons reason, vo
                     if (websocket_path_scheduling_table[i].scheduler != NULL)
                     {
                         printf("调用 %s 路径的调度器\n", pss->path);
-                        websocket_path_scheduling_table[i].scheduler(wsi, root);
+                websocket_path_scheduling_table[i].scheduler(conn, root);
                     }
                     else
                     {
@@ -112,7 +149,7 @@ static int callback_server(struct lws *wsi, enum lws_callback_reasons reason, vo
                         // 发送未实现响应
                         const char *not_impl_resp = "{\"success\": false, \"error\": -1, "
                                                     "\"message\": \"功能尚未实现\", \"data\": {}}";
-                        ws_send_text(wsi, not_impl_resp);
+                ws_send_text(conn, not_impl_resp);
                     }
                     break;
                 }
@@ -124,75 +161,112 @@ static int callback_server(struct lws *wsi, enum lws_callback_reasons reason, vo
                 // 发送路径不支持响应
                 const char *unsupported_resp = "{\"success\": false, \"error\": -1, \"message\": "
                                                "\"不支持的路径\", \"data\": {}}";
-                ws_send_text(wsi, unsupported_resp);
+        ws_send_text(conn, unsupported_resp);
             }
 
             // 释放解析的 JSON 树
             cJSON_Delete(root);
-        }
-        break;
-
-        case LWS_CALLBACK_CLOSED:
-            printf("客户端连接已关闭.\n");
-            break;
-
-        case LWS_CALLBACK_PROTOCOL_INIT:
-            printf("协议初始化.\n");
-            break;
-
-        default:
-            break;
-    }
-
-    return 0;
+    return 1; // 保持连接
 }
 
-static struct lws_protocols protocols[] = {
+/* WebSocket 关闭处理器：连接关闭时调用 */
+static void ws_close_handler(const struct mg_connection *conn, void *user_data)
+{
+    (void)user_data; /* unused */
+    
+    // 释放连接数据
+    struct per_session_data *pss = (struct per_session_data *)mg_get_user_connection_data(conn);
+    if (pss)
     {
-        .name = "ws_protocol",
-        .callback = callback_server,
-        .per_session_data_size = sizeof(struct per_session_data),
-        .rx_buffer_size = 1024,
-    },
-    {
-        .name = NULL,
-        .callback = NULL,
-        .per_session_data_size = 0,
-        .rx_buffer_size = 0,
-    }};
+        free(pss);
+    }
+    
+    printf("客户端连接已关闭.\n");
+}
+
+/* 信号处理器 */
+static void signal_handler(int sig)
+{
+    (void)sig;
+    g_exit = 1;
+}
 
 int main(void)
 {
-    struct lws_context_creation_info info;
-    struct lws_context *context;
-
-    memset(&info, 0, sizeof info);
-    info.port = SERVER_PORT;
-    info.protocols = protocols;
-    info.gid = -1;
-    info.uid = -1;
-    info.options = LWS_SERVER_OPTION_VALIDATE_UTF8;
-
-    context = lws_create_context(&info);
-    if (!context)
+    // 初始化 civetweb 库
+    unsigned features = mg_init_library(MG_FEATURES_WEBSOCKET);
+    if (features == 0)
     {
-        fprintf(stderr, "lws_create_context 失败\n");
+        fprintf(stderr, "mg_init_library 失败\n");
+        return 1;
+    }
+    
+    // 设置信号处理器
+    signal(SIGINT, signal_handler);
+    signal(SIGTERM, signal_handler);
+    
+    // 配置服务器选项
+    char port_str[16];
+    snprintf(port_str, sizeof(port_str), "%d", SERVER_PORT);
+    const char *server_options[] = {
+        "listening_ports", port_str,
+        "num_threads", "10",
+        NULL, NULL
+    };
+    
+    // 启动服务器
+    struct mg_callbacks callbacks = {0};
+    void *user_data = NULL;
+    
+    struct mg_init_data mg_start_init_data = {0};
+    mg_start_init_data.callbacks = &callbacks;
+    mg_start_init_data.user_data = user_data;
+    mg_start_init_data.configuration_options = server_options;
+    
+    struct mg_error_data mg_start_error_data = {0};
+    char errtxtbuf[256] = {0};
+    mg_start_error_data.text = errtxtbuf;
+    mg_start_error_data.text_buffer_size = sizeof(errtxtbuf);
+    
+    g_ctx = mg_start2(&mg_start_init_data, &mg_start_error_data);
+    if (!g_ctx)
+    {
+        fprintf(stderr, "无法启动服务器: %s\n", errtxtbuf);
+        mg_exit_library();
         return 1;
     }
 
-    printf("WiFi 测试服务器启动，监听端口 %d...\n", SERVER_PORT);
-    printf("等待客户端连接...\n");
-
-    while (1)
+    // 注册 WebSocket 处理器（为每个路径注册）
+    for (size_t i = 0; i < WEBSOCKET_PATH_SCHEDULING_TABLE_SIZE; i++)
     {
-        int n = lws_service(context, 1000);
-        if (n < 0)
-        {
-            fprintf(stderr, "lws_service 返回错误\n");
-            break;
-        }
+        mg_set_websocket_handler(g_ctx,
+                                  websocket_path_scheduling_table[i].patch,
+                                  ws_connect_handler,
+                                  ws_ready_handler,
+                                  ws_data_handler,
+                                  ws_close_handler,
+                                  user_data);
     }
-
-    lws_context_destroy(context);
+    
+    printf("WebSocket 服务器启动，监听端口 %d...\n", SERVER_PORT);
+    printf("等待客户端连接...\n");
+    printf("支持的路径:\n");
+    for (size_t i = 0; i < WEBSOCKET_PATH_SCHEDULING_TABLE_SIZE; i++)
+    {
+        printf("  - %s\n", websocket_path_scheduling_table[i].patch);
+    }
+    
+    // 运行服务器
+    while (!g_exit)
+    {
+        sleep(1);
+    }
+    
+    printf("WebSocket 服务器正在停止...\n");
+    
+    // 停止服务器并清理
+    mg_stop(g_ctx);
+    mg_exit_library();
+    
     return 0;
 }

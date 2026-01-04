@@ -15,7 +15,7 @@ limitations under the License.
 */
 
 #include "wifi_scheduler.h"
-#include "../lib/cJSON/cJSON.h"
+#include "cJSON.h"
 #include "fun/wifi_connect.h"
 #include "fun/wifi_disconnect.h"
 #include "fun/wifi_enable.h"
@@ -62,10 +62,10 @@ wifi_dispatch *wifi_dispatch_get_by_index(size_t index)
  *
  * @details 不需要释放root，外层释放
  *
- * @param wsi
+ * @param conn
  * @param root
  */
-void wifi_scheduler(struct lws *wsi, cJSON *root)
+void wifi_scheduler(struct mg_connection *conn, cJSON *root)
 {
     cJSON *type_item = cJSON_GetObjectItemCaseSensitive(root, "type");
 
@@ -81,7 +81,7 @@ void wifi_scheduler(struct lws *wsi, cJSON *root)
         {
             if (wifi_dispatch_table[i].handler != NULL)
             {
-                wifi_dispatch_table[i].handler(wsi, i, root);
+                wifi_dispatch_table[i].handler(conn, i, root);
             }
             return;
         }

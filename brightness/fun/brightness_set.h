@@ -17,10 +17,10 @@ limitations under the License.
 #ifndef __BRIGHTNESS_SET_H__
 #define __BRIGHTNESS_SET_H__
 
-#include "../../lib/cJSON/cJSON.h"
-#include <libwebsockets.h>
+#include "cJSON.h"
+#include "civetweb.h"
 
 
-void brightness_set(struct lws *wsi, size_t index, cJSON *root);
+void brightness_set(struct mg_connection *conn, size_t index, cJSON *root);
 
 #endif

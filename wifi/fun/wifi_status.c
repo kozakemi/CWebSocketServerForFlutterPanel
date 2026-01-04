@@ -15,11 +15,11 @@ limitations under the License.
 */
 
 #include "wifi_status.h"
-#include "../../lib/cJSON/cJSON.h"
+#include "cJSON.h"
 #include "../wifi_def.h"
 #include "../wifi_scheduler.h"
 #include "../../ws_utils.h"
-#include <libwebsockets.h>
+#include "civetweb.h"
 #include <stdbool.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -215,7 +215,7 @@ static wifi_error_t wifi_status_execution(void)
  * @param index
  * @param root
  */
-void wifi_status(struct lws *wsi, size_t index, cJSON *root)
+void wifi_status(struct mg_connection *conn, size_t index, cJSON *root)
 {
     int ret = 0;
     // { "type": "wifi_status_request", "data": {} }
@@ -317,7 +317,7 @@ void wifi_status(struct lws *wsi, size_t index, cJSON *root)
     else
     {
         printf("wifi_status: %s\n", response_str);
-        int n = ws_send_text(wsi, response_str);
+        int n = ws_send_text(conn, response_str);
         if (n < 0)
         {
             printf("wifi_status: Failed to write response\n");

@@ -15,11 +15,11 @@ limitations under the License.
 */
 
 #include "wifi_enable.h"
-#include "../../lib/cJSON/cJSON.h"
+#include "cJSON.h"
 #include "../wifi_def.h"
 #include "../wifi_scheduler.h"
 #include "../../ws_utils.h"
-#include <libwebsockets.h>
+#include "civetweb.h"
 #include <stdbool.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -111,7 +111,7 @@ static wifi_error_t wifi_enable_execution(bool is_enable)
  * @param index 调度数组索引值
  * @param root json对象
  */
-void wifi_enable(struct lws *wsi, size_t index, cJSON *root)
+void wifi_enable(struct mg_connection *conn, size_t index, cJSON *root)
 {
     int ret = 0;
     /*
@@ -175,7 +175,7 @@ void wifi_enable(struct lws *wsi, size_t index, cJSON *root)
     else
     {
         printf("wifi_enable: %s\n", response_str);
-        int n = ws_send_text(wsi, response_str);
+        int n = ws_send_text(conn, response_str);
         if (n < 0)
         {
             printf("wifi_enable: Failed to write response\n");

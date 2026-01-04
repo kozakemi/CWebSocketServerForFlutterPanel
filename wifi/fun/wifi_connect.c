@@ -15,15 +15,16 @@ limitations under the License.
 */
 
 #include "wifi_connect.h"
-#include "../../lib/cJSON/cJSON.h"
+#include "cJSON.h"
 #include "../wifi_def.h"
 #include "../wifi_scheduler.h"
 #include "../../ws_utils.h"
-#include <libwebsockets.h>
+#include "civetweb.h"
 #include <stdbool.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <unistd.h>
 
 /************* 请求 ***************/
 typedef struct
@@ -205,7 +206,7 @@ wait_for_connection:
     return WIFI_ERR_OK;
 }
 
-void wifi_connect(struct lws *wsi, size_t index, cJSON *root)
+void wifi_connect(struct mg_connection *conn, size_t index, cJSON *root)
 {
     int ret = 0;
     /**
@@ -291,7 +292,7 @@ void wifi_connect(struct lws *wsi, size_t index, cJSON *root)
     else
     {
         printf("wifi_connect: %s\n", response_str);
-        int n = ws_send_text(wsi, response_str);
+        int n = ws_send_text(conn, response_str);
         if (n < 0)
         {
             printf("wifi_connect: Failed to write response\n");
