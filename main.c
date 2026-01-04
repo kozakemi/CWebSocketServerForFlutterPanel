@@ -54,7 +54,15 @@ static websocket_path_scheduling websocket_path_scheduling_table[] = {
 static struct mg_context *g_ctx = NULL;
 volatile int g_exit = 0;
 
-/* WebSocket 连接处理器：客户端尝试建立连接时调用 */
+/**
+ * 处理新的 WebSocket 连接：为连接分配并初始化每连接数据，提取请求路径并将其附加到连接上。
+ *
+ * 如果请求中包含本地 URI，则将其复制到每连接数据的 path 字段；否则将 path 设为 "/"。
+ *
+ * @param conn 指向正在建立的 CivetWeb 连接对象的指针。
+ * @param user_data 传入的用户数据（本函数未使用，可为 NULL）。
+ * @returns `0` 表示接受连接并将每连接数据附加到连接上；非零值表示拒绝连接（分配失败时返回）。 
+ */
 static int ws_connect_handler(const struct mg_connection *conn, void *user_data)
 {
     (void)user_data; /* unused */
@@ -85,7 +93,12 @@ static int ws_connect_handler(const struct mg_connection *conn, void *user_data)
     return 0; // 接受连接
 }
 
-/* WebSocket 就绪处理器：握手完成后调用 */
+/**
+         * 在 WebSocket 握手完成后记录连接已就绪。
+         *
+         * @param conn 触发就绪事件的 CivetWeb 连接对象。
+         * @param user_data 在注册回调时传入的用户数据（可为 NULL）。
+         */
 static void ws_ready_handler(struct mg_connection *conn, void *user_data)
 {
     (void)conn; /* unused */
@@ -93,7 +106,19 @@ static void ws_ready_handler(struct mg_connection *conn, void *user_data)
     printf("WebSocket 连接就绪\n");
         }
 
-/* WebSocket 数据处理器：收到数据时调用 */
+/**
+ * 处理收到的 WebSocket 数据并将文本格式的 JSON 消息按连接路径分发给对应的调度器。
+ *
+ * 仅处理文本帧：将接收的数据解析为 JSON，解析失败时发送解析错误响应；解析成功后根据连接的路径查找并调用对应的调度器，
+ * 若路径未注册或调度器未实现则发送相应错误响应。函数不接管连接数据的生命周期；调用后连接可继续保持或关闭（见返回值）。
+ *
+ * @param conn 当前的 CivetWeb 连接对象，用于发送响应并传递给路径调度器。
+ * @param opcode WebSocket 帧的操作码，用以判断是否为文本帧。
+ * @param data 指向接收到的数据缓冲区（未以 NUL 终止，长度由 datasize 指定）。
+ * @param datasize data 缓冲区的字节长度。
+ * @param user_data 用户数据（未使用）。
+ * @returns `1` 表示保持连接，`0` 表示关闭连接。
+ */
 static int ws_data_handler(struct mg_connection *conn,
                             int opcode,
                             char *data,
@@ -169,7 +194,13 @@ static int ws_data_handler(struct mg_connection *conn,
     return 1; // 保持连接
 }
 
-/* WebSocket 关闭处理器：连接关闭时调用 */
+/**
+ * 释放并清理与已关闭 WebSocket 连接关联的会话数据。
+ *
+ * 如果连接上挂载了 per_session_data，则释放其内存并记录连接关闭信息。
+ *
+ * @param conn 指向已关闭连接的 CivetWeb 连接对象，用于检索并释放其关联的会话数据。
+ */
 static void ws_close_handler(const struct mg_connection *conn, void *user_data)
 {
     (void)user_data; /* unused */
@@ -184,13 +215,27 @@ static void ws_close_handler(const struct mg_connection *conn, void *user_data)
     printf("客户端连接已关闭.\n");
 }
 
-/* 信号处理器 */
+/**
+ * 设置退出标志以触发服务器优雅关闭。
+ *
+ * 接收到终止类信号时将全局变量 `g_exit` 设为 1，通知主循环退出并开始停止服务器。
+ *
+ * @param sig 触发处理器的信号编号（未使用）。
+ */
 static void signal_handler(int sig)
 {
     (void)sig;
     g_exit = 1;
 }
 
+/**
+ * 启动并运行基于 CivetWeb 的 WebSocket 服务器，注册路径对应的处理器，等待终止信号后优雅关闭服务器。
+ *
+ * 初始化 CivetWeb 库，配置并启动服务器，按 websocket_path_scheduling_table 中的路径为每个路径注册
+ * 连接/就绪/数据/关闭回调，进入由 signal_handler 控制的主循环以保持服务器运行，接收到终止信号后停止服务器并清理资源。
+ *
+ * @returns 0 表示服务器正常启动并在接收到终止信号后成功退出；非零表示启动或初始化失败。
+ */
 int main(void)
 {
     // 初始化 civetweb 库

@@ -56,9 +56,13 @@ wifi_connect_request wifi_connect_req_instance;
 wifi_connect_response wifi_connect_res_instance;
 
 /**
- * @brief 执行wifi连接操作
+ * 使用 wpa_cli 执行 Wi‑Fi 连接流程：在可能的情况下选择已保存网络或新增网络，启用并选择网络后轮询连接状态直至成功或超时。
  *
- * @return wifi_connect_error_code
+ * 如果请求中未提供密码，会尝试查找并启用已保存的网络；否则会新增一个网络、设置 SSID 与 PSK（或将其配置为开放网络）、启用并选择该网络。函数在选定网络后轮询 wpa_state 直至出现 COMPLETED 或达到超时时间（使用请求中的 timeout_ms，缺省为 20000 毫秒）；连接成功后会保存配置。
+ *
+ * @return `WIFI_ERR_OK` 表示连接成功并且已保存配置；
+ *         `WIFI_ERR_TIMEOUT` 表示在指定超时时间内未连接成功；
+ *         `WIFI_ERR_TOOL_ERROR` 表示调用底层 wpa_cli 等命令时出现错误（例如无法获取网络 ID）。
  */
 static wifi_error_t wifi_connect_execution(void)
 {
@@ -206,6 +210,17 @@ wait_for_connection:
     return WIFI_ERR_OK;
 }
 
+/**
+ * 处理来自 WebSocket 的 Wi‑Fi 连接请求：解析请求 JSON、执行连接流程并发送响应 JSON。
+ *
+ * 解析 root 中的请求字段（包括 type、request_id、data.ssid、data.password、data.timeout_ms），
+ * 在缺少或非法的 ssid 时返回带有 WIFI_ERR_BAD_REQUEST 的响应；否则调用 wifi_connect_execution 执行连接。
+ * 最终通过 conn 发送一个包含字段 `type`、`request_id`、`success`、`error` 和空 `data` 对象的响应消息。
+ *
+ * @param conn WebSocket 连接句柄，用于发送响应。
+ * @param index 索引用于从调度表获取响应消息的类型字符串。
+ * @param root 已解析的请求 JSON 对象（cJSON*），函数会从中读取请求内容。
+ */
 void wifi_connect(struct mg_connection *conn, size_t index, cJSON *root)
 {
     int ret = 0;

@@ -105,11 +105,16 @@ static wifi_error_t wifi_enable_execution(bool is_enable)
 }
 
 /**
- * @brief wifi开关协议处理
+ * 处理 Wi‑Fi 启用/禁用 请求并通过 WebSocket 返回执行结果。
  *
- * @param wsi WebSocket 实例指针
- * @param index 调度数组索引值
- * @param root json对象
+ * 解析传入的 JSON 请求（期望包含可选的 "type"、可选的 "request_id"，以及 data.enable 布尔值），
+ * 根据 data.enable 的值触发 Wi‑Fi 启用或禁用操作，并构建包含以下字段的响应 JSON：
+ * "type"、"request_id"、"success"（操作是否成功）、"error"（错误码）和 "data.enable"（当前目标状态）。
+ * 若 data.enable 缺失或非布尔值，则认为请求无效并在响应中返回相应错误码，仍会回显 request_id（若提供）。
+ *
+ * @param conn 当前的 CivetWeb 连接指针，用于发送响应文本。
+ * @param index 调度表索引，用于确定响应的类型字段。
+ * @param root 请求的 cJSON 根对象（期望结构见上文）。
  */
 void wifi_enable(struct mg_connection *conn, size_t index, cJSON *root)
 {

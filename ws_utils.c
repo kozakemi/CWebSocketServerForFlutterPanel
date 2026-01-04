@@ -19,6 +19,13 @@ limitations under the License.
 #include <stdlib.h>
 #include <string.h>
 
+/**
+ * 通过给定的 mg_connection 发送一个文本 WebSocket 消息。
+ *
+ * @param conn 指向已连接的 WebSocket 连接对象；如果为 NULL 则不会发送。
+ * @param text 要发送的以 NUL 结尾的文本负载；如果为 NULL 则不会发送。
+ * @returns 发送操作返回的字节数（来自 mg_websocket_write）的整数值；在输入无效时返回 -1。
+ */
 int ws_send_text(struct mg_connection *conn, const char *text)
 {
     if (!conn || !text)
@@ -30,4 +37,3 @@ int ws_send_text(struct mg_connection *conn, const char *text)
     const int n = mg_websocket_write(conn, MG_WEBSOCKET_OPCODE_TEXT, text, len);
     return n;
 }
-

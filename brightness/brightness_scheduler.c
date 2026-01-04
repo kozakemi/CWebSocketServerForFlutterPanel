@@ -52,10 +52,12 @@ brightness_dispatch *brightness_dispatch_get_by_index(size_t index)
     return &brightness_dispatch_table[index];
 }
 /**
- * @brief 亮度调度器
+ * 根据 JSON 根对象中的 "type" 字段在亮度调度表中查找并调用对应的处理函数。
  *
- * @param conn WebSocket连接指针
- * @param root JSON根对象指针
+ * 如果 "type" 字段缺失或不是字符串，则在 stderr 输出错误并返回。
+ *
+ * @param conn 指向当前连接的 `struct mg_connection` 指针，用于处理请求/响应的上下文。
+ * @param root 已解析的 JSON 根对象，函数会读取 `root->"type"` 来选择调度条目。
  */
 void brightness_scheduler(struct mg_connection *conn, cJSON *root)
 {

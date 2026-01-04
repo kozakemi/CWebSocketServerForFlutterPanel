@@ -58,12 +58,12 @@ wifi_dispatch *wifi_dispatch_get_by_index(size_t index)
 }
 
 /**
- * @brief wifi 任务调度器
+ * 调度并路由 Wi‑Fi 相关请求到注册的处理函数。
  *
- * @details 不需要释放root，外层释放
+ * 从提供的 JSON 对象中读取 "type" 字段，查找并匹配内部 dispatch 表中的请求字符串；在找到匹配且对应处理器存在时调用该处理器。若 "type" 缺失或不是字符串，函数会向 stderr 输出错误并返回。该函数不释放传入的 `root`。
  *
- * @param conn
- * @param root
+ * @param conn 传入的连接对象指针，作为参数转发给相应的处理器。
+ * @param root 已解析的 JSON 根对象，必须包含名为 "type" 的字符串字段；调用者负责释放该对象（函数不释放）。
  */
 void wifi_scheduler(struct mg_connection *conn, cJSON *root)
 {

@@ -105,11 +105,14 @@ static brightness_error_t brightness_status_execution(void)
 }
 
 /**
- * @brief 处理亮度状态请求
+ * 处理亮度状态请求并通过 WebSocket 发送响应。
  *
- * @param wsi WebSocket 实例指针
- * @param index 调度索引
- * @param root JSON 根对象指针
+ * 解析请求 JSON（期望包含 "type" 和可选的 "request_id"），执行亮度读取与计算，
+ * 构建包含字段 `type`、`request_id`、`success`、`error` 和 `data.brightness` 的响应对象并发送回客户端。
+ *
+ * @param conn WebSocket 连接，用于发送响应。
+ * @param index 调度索引，用于确定响应的 `type` 字符串。
+ * @param root 指向已解析的请求 JSON 根对象（期望包含可选的 "request_id" 字段）。
  */
 void brightness_status(struct mg_connection *conn, size_t index, cJSON *root)
 {

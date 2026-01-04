@@ -51,9 +51,14 @@ wifi_disconnect_request wifi_disconnect_req_instance;
 wifi_disconnect_response wifi_disconnect_res_instance;
 
 /**
- * @brief 执行wifi断开连接操作
+ * 执行 Wi‑Fi 断开操作：验证当前连接状态、可选地校验指定 SSID 是否匹配，然后调用底层工具断开连接。
  *
- * @return wifi_disconnect_error_code
+ * 在请求中若包含 data.ssid，则会确认当前连接的 SSID 与之相同才进行断开。
+ *
+ * @returns `WIFI_ERR_OK` 成功断开；
+ *          `WIFI_ERR_NOT_CONNECTED` 当前未连接任何网络；
+ *          `WIFI_ERR_BAD_REQUEST` 请求中指定的 SSID 与当前连接的 SSID 不匹配；
+ *          `WIFI_ERR_TOOL_ERROR` 调用底层断开命令失败。 
  */
 static wifi_error_t wifi_disconnect_execution(void)
 {
@@ -131,6 +136,16 @@ static wifi_error_t wifi_disconnect_execution(void)
     return WIFI_ERR_OK;
 }
 
+/**
+ * 处理 Wi‑Fi 断开请求：解析请求 JSON、执行断开操作并通过给定连接发送响应 JSON。
+ *
+ * 解析请求中的 "type"、"request_id" 和可选的 "data.ssid"，调用底层断开执行函数获取错误码，
+ * 然后构建包含 "type"、"request_id"、"success"、"error" 和空 "data" 对象的响应并通过 conn 发送。
+ *
+ * @param conn CivetWeb 连接，用于发送响应。
+ * @param index 调度表索引，用于查找响应类型字符串。
+ * @param root 已解析的请求 JSON 对象（cJSON），预期包含 "type"、"request_id" 和可选 "data" 字段。
+ */
 void wifi_disconnect(struct mg_connection *conn, size_t index, cJSON *root)
 {
     int ret = 0;

@@ -131,11 +131,15 @@ static brightness_error_t brightness_set_execution(int percent)
 }
 
 /**
- * @brief 设置亮度
+ * 处理来自 WebSocket 的亮度设置请求并发送对应的 JSON 响应。
  *
- * @param wsi
- * @param index
- * @param root
+ * 从给定的 JSON 请求中解析字段 "request_id" 和 "data.brightness"；如果亮度字段缺失或非数字，则返回对应的错误码，
+ * 否则调用亮度执行函数尝试设置亮度。函数构建包含 type、request_id、success、error 的响应对象，
+ * 在成功时于 data 中包含实际设置的 brightness 值，并将序列化后的 JSON 字符串通过 WebSocket 连接发送回客户端。
+ *
+ * @param conn CivetWeb 连接，用于发送响应。
+ * @param index 索引用于查找对应的响应类型字符串（用于填充响应的 type 字段）。
+ * @param root 已解析的 cJSON 根对象，表示收到的请求 JSON。
  */
 void brightness_set(struct mg_connection *conn, size_t index, cJSON *root)
 {

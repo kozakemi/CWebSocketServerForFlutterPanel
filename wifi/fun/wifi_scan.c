@@ -395,11 +395,13 @@ static wifi_error_t wifi_scan_execution(bool rescan)
 }
 
 /**
- * @brief 扫描WiFi网络
+ * 处理并响应一个 WiFi 扫描请求。
  *
- * @param wsi
- * @param index
- * @param root
+ * 解析传入的 JSON 请求（包括 request_id 和可选的 data.rescan），执行扫描，构建包含所有扫描到的网络信息的响应并通过 WebSocket 连接发送回客户端；发送完成后释放用于构建响应的动态内存。
+ *
+ * @param conn CivetWeb 的连接对象，用于发送响应。
+ * @param index 请求调度索引，用于查找对应的响应类型。
+ * @param root 已解析的 cJSON 对象，表示收到的请求消息（函数会读取其中的 "type"、"request_id" 和 "data.rescan" 字段）。
  */
 void wifi_scan(struct mg_connection *conn, size_t index, cJSON *root)
 {

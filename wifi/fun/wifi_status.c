@@ -209,11 +209,11 @@ static wifi_error_t wifi_status_execution(void)
 }
 
 /**
- * @brief 获取wifi状态
+ * 处理 WiFi 状态请求：解析请求、收集当前 WiFi 状态并通过 WebSocket（CivetWeb 连接）发送 JSON 响应。
  *
- * @param wsi
- * @param index
- * @param root
+ * @param conn CivetWeb 连接，用于发送响应文本。
+ * @param index 调度表索引，用于获取响应类型。
+ * @param root 输入的 cJSON 对象，函数从中读取 "type" 和 "request_id" 字段以构建响应。
  */
 void wifi_status(struct mg_connection *conn, size_t index, cJSON *root)
 {
