@@ -14,8 +14,8 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-#ifndef __WIFI_ENABLE_H__
-#define __WIFI_ENABLE_H__
+#ifndef WIFI_ENABLE_H
+#define WIFI_ENABLE_H
 #include "cJSON.h"
 #include "civetweb.h"
 void wifi_enable(struct mg_connection *conn, size_t index, cJSON *root);

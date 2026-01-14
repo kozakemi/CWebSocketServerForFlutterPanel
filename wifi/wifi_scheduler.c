@@ -39,7 +39,7 @@ wifi_dispatch wifi_dispatch_table[] = {
     {"wifi_disconnect_request", "wifi_disconnect_response", wifi_disconnect}, // 断开wifi
 };
 
-#define wifi_dispatch_table_LEN (sizeof(wifi_dispatch_table) / sizeof(wifi_dispatch_table[0]))
+#define WIFI_DISPATCH_TABLE_LEN (sizeof(wifi_dispatch_table) / sizeof(wifi_dispatch_table[0]))
 
 /**
  * @brief 获取wifi调度
@@ -50,7 +50,7 @@ wifi_dispatch wifi_dispatch_table[] = {
 wifi_dispatch *wifi_dispatch_get_by_index(size_t index)
 {
     // index is 0..LEN-1; LEN is out-of-bounds
-    if (index >= wifi_dispatch_table_LEN)
+    if (index >= WIFI_DISPATCH_TABLE_LEN)
     {
         return NULL;
     }
@@ -75,7 +75,7 @@ void wifi_scheduler(struct mg_connection *conn, cJSON *root)
         return;
     }
 
-    for (size_t i = 0; i < wifi_dispatch_table_LEN; i++)
+    for (size_t i = 0; i < WIFI_DISPATCH_TABLE_LEN; i++)
     {
         if (strcmp(type_item->valuestring, wifi_dispatch_table[i].request) == 0)
         {

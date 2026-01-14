@@ -15,10 +15,10 @@ limitations under the License.
 */
 
 #include "wifi_connect.h"
-#include "cJSON.h"
+#include "../../ws_utils.h"
 #include "../wifi_def.h"
 #include "../wifi_scheduler.h"
-#include "../../ws_utils.h"
+#include "cJSON.h"
 #include "civetweb.h"
 #include <stdbool.h>
 #include <stdio.h>
@@ -52,15 +52,13 @@ typedef struct
     int error;
 } wifi_connect_response;
 
-wifi_connect_request wifi_connect_req_instance;
-wifi_connect_response wifi_connect_res_instance;
-
 /**
  * @brief 执行wifi连接操作
  *
- * @return wifi_connect_error_code
+ * @param req_instance 请求实例指针
+ * @return wifi_error_t
  */
-static wifi_error_t wifi_connect_execution(void)
+static wifi_error_t wifi_connect_execution(wifi_connect_request *req_instance)
 {
     FILE *fp;
     char buffer[256];
@@ -71,14 +69,13 @@ static wifi_error_t wifi_connect_execution(void)
     bool connected = false;
 
     // 当密码为空时，尝试使用已保存的网络配置
-    if (!wifi_connect_req_instance.data.password ||
-        strlen(wifi_connect_req_instance.data.password) == 0)
+    if (!req_instance->data.password || strlen(req_instance->data.password) == 0)
     {
 
         // 查找已保存的网络ID
         snprintf(command, sizeof(command),
                  "wpa_cli -i %s list_networks 2>/dev/null | grep -E '\t%s\t' | cut -f1",
-                 WIFI_DEVICE, wifi_connect_req_instance.data.ssid);
+                 WIFI_DEVICE, req_instance->data.ssid);
         fp = popen(command, "r");
         if (fp != NULL)
         {
@@ -126,15 +123,14 @@ static wifi_error_t wifi_connect_execution(void)
 
     // 设置SSID
     snprintf(command, sizeof(command), "wpa_cli -i %s set_network %d ssid '\"%s\"' 2>/dev/null",
-             WIFI_DEVICE, network_id, wifi_connect_req_instance.data.ssid);
+             WIFI_DEVICE, network_id, req_instance->data.ssid);
     system(command);
 
     // 设置密码（如果提供了密码）
-    if (wifi_connect_req_instance.data.password &&
-        strlen(wifi_connect_req_instance.data.password) > 0)
+    if (req_instance->data.password && strlen(req_instance->data.password) > 0)
     {
         snprintf(command, sizeof(command), "wpa_cli -i %s set_network %d psk '\"%s\"' 2>/dev/null",
-                 WIFI_DEVICE, network_id, wifi_connect_req_instance.data.password);
+                 WIFI_DEVICE, network_id, req_instance->data.password);
     }
     else
     {
@@ -156,9 +152,7 @@ static wifi_error_t wifi_connect_execution(void)
 
 wait_for_connection:
     // 等待连接结果（最多等待timeout_ms毫秒）
-    timeout = wifi_connect_req_instance.data.timeout_ms > 0
-                  ? wifi_connect_req_instance.data.timeout_ms
-                  : 20000; // 默认20秒
+    timeout = req_instance->data.timeout_ms > 0 ? req_instance->data.timeout_ms : 20000; // 默认20秒
     wait_time = 0;
     connected = false;
 
@@ -209,6 +203,10 @@ wait_for_connection:
 void wifi_connect(struct mg_connection *conn, size_t index, cJSON *root)
 {
     int ret = 0;
+    // 使用局部变量避免多线程竞争
+    wifi_connect_request req_instance = {0};
+    wifi_connect_response res_instance = {0};
+
     /**
      *  解析请求
      *
@@ -223,9 +221,9 @@ void wifi_connect(struct mg_connection *conn, size_t index, cJSON *root)
      *
      */
     cJSON *type = cJSON_GetObjectItem(root, "type");
-    wifi_connect_req_instance.type = (cJSON_IsString(type) && type->valuestring) ? type->valuestring : NULL;
+    req_instance.type = (cJSON_IsString(type) && type->valuestring) ? type->valuestring : NULL;
     cJSON *request_id = cJSON_GetObjectItem(root, "request_id");
-    wifi_connect_req_instance.request_id =
+    req_instance.request_id =
         (cJSON_IsString(request_id) && request_id->valuestring) ? request_id->valuestring : "";
 
     cJSON *data = cJSON_GetObjectItem(root, "data");
@@ -236,21 +234,21 @@ void wifi_connect(struct mg_connection *conn, size_t index, cJSON *root)
     if (!ssid_item || !cJSON_IsString(ssid_item) || !ssid_item->valuestring)
     {
         ret = WIFI_ERR_BAD_REQUEST;
-        wifi_connect_req_instance.data.ssid = NULL;
-        wifi_connect_req_instance.data.password = NULL;
-        wifi_connect_req_instance.data.timeout_ms = 20000;
+        req_instance.data.ssid = NULL;
+        req_instance.data.password = NULL;
+        req_instance.data.timeout_ms = 20000;
     }
     else
     {
-        wifi_connect_req_instance.data.ssid = ssid_item->valuestring;
-        wifi_connect_req_instance.data.password =
+        req_instance.data.ssid = ssid_item->valuestring;
+        req_instance.data.password =
             (password_item && cJSON_IsString(password_item) && password_item->valuestring)
                 ? password_item->valuestring
                 : NULL;
-        wifi_connect_req_instance.data.timeout_ms =
+        req_instance.data.timeout_ms =
             (timeout_item && cJSON_IsNumber(timeout_item)) ? timeout_item->valueint : 20000;
         // 处理请求
-        ret = wifi_connect_execution();
+        ret = wifi_connect_execution(&req_instance);
     }
 
     /**
@@ -272,14 +270,14 @@ void wifi_connect(struct mg_connection *conn, size_t index, cJSON *root)
 
     cJSON *response = cJSON_CreateObject();
 
-    wifi_connect_res_instance.type = wifi_dispatch_get_by_index(index)->response;
-    wifi_connect_res_instance.request_id = wifi_connect_req_instance.request_id;
-    wifi_connect_res_instance.error = ret;
-    wifi_connect_res_instance.success = (ret == WIFI_ERR_OK);
-    cJSON_AddStringToObject(response, "type", wifi_connect_res_instance.type);
-    cJSON_AddStringToObject(response, "request_id", wifi_connect_res_instance.request_id);
-    cJSON_AddBoolToObject(response, "success", wifi_connect_res_instance.success);
-    cJSON_AddNumberToObject(response, "error", wifi_connect_res_instance.error);
+    res_instance.type = wifi_dispatch_get_by_index(index)->response;
+    res_instance.request_id = req_instance.request_id;
+    res_instance.error = ret;
+    res_instance.success = (ret == WIFI_ERR_OK);
+    cJSON_AddStringToObject(response, "type", res_instance.type);
+    cJSON_AddStringToObject(response, "request_id", res_instance.request_id);
+    cJSON_AddBoolToObject(response, "success", res_instance.success);
+    cJSON_AddNumberToObject(response, "error", res_instance.error);
     // 添加空的data对象，保持统一结构
     cJSON *res_data = cJSON_CreateObject();
     cJSON_AddItemToObject(response, "data", res_data);

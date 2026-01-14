@@ -15,10 +15,10 @@ limitations under the License.
 */
 
 #include "wifi_disconnect.h"
-#include "cJSON.h"
+#include "../../ws_utils.h"
 #include "../wifi_def.h"
 #include "../wifi_scheduler.h"
-#include "../../ws_utils.h"
+#include "cJSON.h"
 #include "civetweb.h"
 #include <stdbool.h>
 #include <stdio.h>
@@ -47,15 +47,13 @@ typedef struct
     int error;
 } wifi_disconnect_response;
 
-wifi_disconnect_request wifi_disconnect_req_instance;
-wifi_disconnect_response wifi_disconnect_res_instance;
-
 /**
  * @brief 执行wifi断开连接操作
  *
- * @return wifi_disconnect_error_code
+ * @param req_instance 请求实例指针
+ * @return wifi_error_t
  */
-static wifi_error_t wifi_disconnect_execution(void)
+static wifi_error_t wifi_disconnect_execution(wifi_disconnect_request *req_instance)
 {
     FILE *fp;
     char buffer[256];
@@ -87,8 +85,7 @@ static wifi_error_t wifi_disconnect_execution(void)
     }
 
     // 如果请求中指定了SSID，则检查当前连接的是否是该网络
-    if (wifi_disconnect_req_instance.data.ssid &&
-        strlen(wifi_disconnect_req_instance.data.ssid) > 0)
+    if (req_instance->data.ssid && strlen(req_instance->data.ssid) > 0)
     {
 
         // 获取当前连接的SSID
@@ -112,7 +109,7 @@ static wifi_error_t wifi_disconnect_execution(void)
         }
 
         // 如果当前连接的SSID与请求的SSID不匹配，返回错误
-        if (strcmp(current_ssid, wifi_disconnect_req_instance.data.ssid) != 0)
+        if (strcmp(current_ssid, req_instance->data.ssid) != 0)
         {
             return WIFI_ERR_BAD_REQUEST;
         }
@@ -134,6 +131,9 @@ static wifi_error_t wifi_disconnect_execution(void)
 void wifi_disconnect(struct mg_connection *conn, size_t index, cJSON *root)
 {
     int ret = 0;
+    // 使用局部变量避免多线程竞争
+    wifi_disconnect_request req_instance = {0};
+    wifi_disconnect_response res_instance = {0};
 
     /**
      * 解析请求
@@ -141,27 +141,26 @@ void wifi_disconnect(struct mg_connection *conn, size_t index, cJSON *root)
      * { "type": "wifi_disconnect_request", "data": { "ssid": "MyHomeNetwork" } }
      */
     cJSON *type = cJSON_GetObjectItem(root, "type");
-    wifi_disconnect_req_instance.type =
-        (cJSON_IsString(type) && type->valuestring) ? type->valuestring : NULL;
+    req_instance.type = (cJSON_IsString(type) && type->valuestring) ? type->valuestring : NULL;
 
     cJSON *request_id = cJSON_GetObjectItem(root, "request_id");
-    wifi_disconnect_req_instance.request_id =
+    req_instance.request_id =
         (cJSON_IsString(request_id) && request_id->valuestring) ? request_id->valuestring : "";
 
     cJSON *data = cJSON_GetObjectItem(root, "data");
     cJSON *ssid_item = cJSON_GetObjectItem(data, "ssid");
     if (ssid_item)
     {
-        wifi_disconnect_req_instance.data.ssid =
+        req_instance.data.ssid =
             (cJSON_IsString(ssid_item) && ssid_item->valuestring) ? ssid_item->valuestring : NULL;
     }
     else
     {
-        wifi_disconnect_req_instance.data.ssid = NULL;
+        req_instance.data.ssid = NULL;
     }
 
     // 处理请求
-    ret = wifi_disconnect_execution();
+    ret = wifi_disconnect_execution(&req_instance);
 
     /**
      * 响应：
@@ -175,15 +174,15 @@ void wifi_disconnect(struct mg_connection *conn, size_t index, cJSON *root)
 
     cJSON *response = cJSON_CreateObject();
 
-    wifi_disconnect_res_instance.type = wifi_dispatch_get_by_index(index)->response;
-    wifi_disconnect_res_instance.request_id = wifi_disconnect_req_instance.request_id;
-    wifi_disconnect_res_instance.error = ret;
-    wifi_disconnect_res_instance.success = (ret == WIFI_ERR_OK);
+    res_instance.type = wifi_dispatch_get_by_index(index)->response;
+    res_instance.request_id = req_instance.request_id;
+    res_instance.error = ret;
+    res_instance.success = (ret == WIFI_ERR_OK);
 
-    cJSON_AddStringToObject(response, "type", wifi_disconnect_res_instance.type);
-    cJSON_AddStringToObject(response, "request_id", wifi_disconnect_res_instance.request_id);
-    cJSON_AddBoolToObject(response, "success", wifi_disconnect_res_instance.success);
-    cJSON_AddNumberToObject(response, "error", wifi_disconnect_res_instance.error);
+    cJSON_AddStringToObject(response, "type", res_instance.type);
+    cJSON_AddStringToObject(response, "request_id", res_instance.request_id);
+    cJSON_AddBoolToObject(response, "success", res_instance.success);
+    cJSON_AddNumberToObject(response, "error", res_instance.error);
 
     // 添加空的data对象
     cJSON *res_data = cJSON_CreateObject();

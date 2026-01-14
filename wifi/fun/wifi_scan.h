@@ -14,8 +14,8 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-#ifndef __WIFI_SCAN_H__
-#define __WIFI_SCAN_H__
+#ifndef WIFI_SCAN_H
+#define WIFI_SCAN_H
 #include "cJSON.h"
 #include "civetweb.h"
 #include <stddef.h>

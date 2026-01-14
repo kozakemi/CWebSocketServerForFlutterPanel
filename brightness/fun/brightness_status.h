@@ -14,8 +14,8 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-#ifndef __BRIGHTNESS_STATUS_H__
-#define __BRIGHTNESS_STATUS_H__
+#ifndef BRIGHTNESS_STATUS_H
+#define BRIGHTNESS_STATUS_H
 #include "cJSON.h"
 #include "civetweb.h"
 

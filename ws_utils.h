@@ -28,4 +28,3 @@ limitations under the License.
 int ws_send_text(struct mg_connection *conn, const char *text);
 
 #endif
-

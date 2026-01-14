@@ -56,3 +56,6 @@ compile_commands.json
 *.dylib
 main
 project-cppcheck-build-dir
+
+# clang 缓存
+.cache/

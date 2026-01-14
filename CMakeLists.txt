@@ -9,10 +9,12 @@ project(CWebSocketServerForFlutterPanel
 set(CMAKE_C_STANDARD 99)
 set(CMAKE_C_STANDARD_REQUIRED ON)
 
-# 编译选项
-set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -D_GNU_SOURCE")
-set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -Wall -Wextra")
-set(CMAKE_C_FLAGS_DEBUG "${CMAKE_C_FLAGS_DEBUG} -g -O0")
+# 生成 compile_commands.json 供 clangd 使用
+set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
+
+# 使用现代 CMake 实践设置编译选项
+add_compile_definitions(_GNU_SOURCE)
+add_compile_options(-Wall -Wextra)
 
 # 包含目录
 include_directories(
@@ -49,6 +51,11 @@ set(SOURCES
 
 # 创建可执行文件
 add_executable(${PROJECT_NAME} ${SOURCES})
+
+# 设置目标特定的编译选项
+target_compile_options(${PROJECT_NAME} PRIVATE
+    $<$<CONFIG:Debug>:-g -O0>
+)
 
 # 链接库
 target_link_libraries(${PROJECT_NAME}

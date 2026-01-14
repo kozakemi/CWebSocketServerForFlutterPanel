@@ -14,8 +14,8 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-#ifndef __WIFI_DEF_H__
-#define __WIFI_DEF_H__
+#ifndef WIFI_DEF_H
+#define WIFI_DEF_H
 
 #include <stddef.h>
 #define WIFI_DEVICE "wlan0"

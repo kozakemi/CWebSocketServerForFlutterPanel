@@ -15,10 +15,10 @@ limitations under the License.
 */
 
 #include "wifi_enable.h"
-#include "cJSON.h"
+#include "../../ws_utils.h"
 #include "../wifi_def.h"
 #include "../wifi_scheduler.h"
-#include "../../ws_utils.h"
+#include "cJSON.h"
 #include "civetweb.h"
 #include <stdbool.h>
 #include <stdio.h>
@@ -60,9 +60,6 @@ typedef struct
     wifi_enable_data data;
 } wifi_enable_res;
 
-wifi_enable_req wifi_enable_req_instance;
-wifi_enable_res wifi_enable_res_instance;
-
 /**
  * @brief 启用或禁用Wi-Fi功能（不保证连接成功）
  *
@@ -80,14 +77,18 @@ static wifi_error_t wifi_enable_execution(bool is_enable)
         snprintf(command, sizeof(command), "wpa_cli -i %s enable_network all", WIFI_DEVICE);
         result = system(command);
         if (result != 0)
+        {
             return WIFI_ERR_TOOL_ERROR;
+        }
 
         // 触发重新连接（即使无网络也不报错）
         snprintf(command, sizeof(command), "wpa_cli -i %s reconnect", WIFI_DEVICE);
         result = system(command);
         // 注意：reconnect 在无网络时也返回 0，这是正常的
         if (result != 0)
+        {
             return WIFI_ERR_TOOL_ERROR;
+        }
     }
     else
     {
@@ -107,13 +108,17 @@ static wifi_error_t wifi_enable_execution(bool is_enable)
 /**
  * @brief wifi开关协议处理
  *
- * @param wsi WebSocket 实例指针
+ * @param conn WebSocket 连接指针
  * @param index 调度数组索引值
  * @param root json对象
  */
 void wifi_enable(struct mg_connection *conn, size_t index, cJSON *root)
 {
     int ret = 0;
+    // 使用局部变量避免多线程竞争
+    wifi_enable_req req_instance = {0};
+    wifi_enable_res res_instance = {0};
+
     /*
      * {
      *    "type": "wifi_enable_request",
@@ -123,30 +128,30 @@ void wifi_enable(struct mg_connection *conn, size_t index, cJSON *root)
      * }
      */
     cJSON *type = cJSON_GetObjectItem(root, "type");
-    wifi_enable_req_instance.type = (cJSON_IsString(type) && type->valuestring) ? type->valuestring : NULL;
+    req_instance.type = (cJSON_IsString(type) && type->valuestring) ? type->valuestring : NULL;
     cJSON *request_id = cJSON_GetObjectItem(root, "request_id");
-    wifi_enable_req_instance.request_id =
+    req_instance.request_id =
         (cJSON_IsString(request_id) && request_id->valuestring) ? request_id->valuestring : "";
     cJSON *data = cJSON_GetObjectItem(root, "data");
     cJSON *enable_item = data ? cJSON_GetObjectItem(data, "enable") : NULL;
     if (!enable_item || !cJSON_IsBool(enable_item))
     {
         ret = WIFI_ERR_BAD_REQUEST;
-        wifi_enable_req_instance.data.enable = false;
+        req_instance.data.enable = false;
     }
     else
     {
-        wifi_enable_req_instance.data.enable = cJSON_IsTrue(enable_item);
+        req_instance.data.enable = cJSON_IsTrue(enable_item);
         // 执行wifi开关操作
-        ret = wifi_enable_execution(wifi_enable_req_instance.data.enable);
+        ret = wifi_enable_execution(req_instance.data.enable);
     }
 
     // 根据执行结果构建响应数据
-    wifi_enable_res_instance.type = wifi_dispatch_get_by_index(index)->response; // 使用响应类型
-    wifi_enable_res_instance.success = (ret == WIFI_ERR_OK); // 设置成功标志
-    wifi_enable_res_instance.error = ret;                    // 设置错误码
-    wifi_enable_res_instance.data.enable = wifi_enable_req_instance.data.enable; // 设置数据
-    wifi_enable_res_instance.request_id = wifi_enable_req_instance.request_id;   // 回显request_id
+    res_instance.type = wifi_dispatch_get_by_index(index)->response; // 使用响应类型
+    res_instance.success = (ret == WIFI_ERR_OK);                     // 设置成功标志
+    res_instance.error = ret;                                        // 设置错误码
+    res_instance.data.enable = req_instance.data.enable;             // 设置数据
+    res_instance.request_id = req_instance.request_id;               // 回显request_id
 
     /**
      * {
@@ -159,11 +164,11 @@ void wifi_enable(struct mg_connection *conn, size_t index, cJSON *root)
      */
     cJSON *response = cJSON_CreateObject();
     cJSON *res_data = cJSON_CreateObject();
-    cJSON_AddStringToObject(response, "type", wifi_enable_res_instance.type);
-    cJSON_AddStringToObject(response, "request_id", wifi_enable_res_instance.request_id);
-    cJSON_AddBoolToObject(response, "success", wifi_enable_res_instance.success);
-    cJSON_AddNumberToObject(response, "error", wifi_enable_res_instance.error);
-    cJSON_AddBoolToObject(res_data, "enable", wifi_enable_res_instance.data.enable);
+    cJSON_AddStringToObject(response, "type", res_instance.type);
+    cJSON_AddStringToObject(response, "request_id", res_instance.request_id);
+    cJSON_AddBoolToObject(response, "success", res_instance.success);
+    cJSON_AddNumberToObject(response, "error", res_instance.error);
+    cJSON_AddBoolToObject(res_data, "enable", res_instance.data.enable);
     cJSON_AddItemToObject(response, "data", res_data);
 
     char *response_str = cJSON_PrintUnformatted(response); // 紧凑格式

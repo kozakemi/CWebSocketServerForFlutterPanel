@@ -14,13 +14,12 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-#ifndef __WIFI_SCHEDULER_H__
-#define __WIFI_SCHEDULER_H__
+#ifndef WIFI_SCHEDULER_H
+#define WIFI_SCHEDULER_H
 #include "cJSON.h"
-#include "wifi_def.h"
 #include "civetweb.h"
+#include "wifi_def.h"
 #include <stdint.h>
-
 
 /**
  * @brief wifi调度结构体定义

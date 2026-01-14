@@ -14,12 +14,11 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-#ifndef __BRIGHTNESS_SET_H__
-#define __BRIGHTNESS_SET_H__
+#ifndef BRIGHTNESS_SET_H
+#define BRIGHTNESS_SET_H
 
 #include "cJSON.h"
 #include "civetweb.h"
-
 
 void brightness_set(struct mg_connection *conn, size_t index, cJSON *root);
 

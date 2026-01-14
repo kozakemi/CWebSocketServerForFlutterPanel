@@ -14,8 +14,8 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-#ifndef __BRIGHT_DEF_H__
-#define __BRIGHT_DEF_H__
+#ifndef BRIGHT_DEF_H
+#define BRIGHT_DEF_H
 
 #include <stddef.h>
 

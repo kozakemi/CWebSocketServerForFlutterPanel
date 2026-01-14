@@ -25,7 +25,6 @@ limitations under the License.
 #include <string.h>
 #include <time.h>
 
-
 /**
  * @brief 亮度调度数组定义
  *

@@ -1,9 +1,13 @@
 ---
-Checks: '-*,misc-naming,readability-identifier-naming'
+Checks: >-
+  -*,
+  misc-naming,
+  readability-identifier-naming,
+  readability-braces-around-statements,
+  readability-misleading-indentation
 
 WarningsAsErrors: ''
-HeaderFilterRegex: '.*'
-AnalyzeTemporaryDtors: false
+HeaderFilterRegex: '^(?!.*lib/).*'
 
 # 命名风格配置 - 下划线命名法
 CheckOptions:
@@ -36,7 +40,7 @@ CheckOptions:
   - key: readability-identifier-naming.EnumPrefixHint
     value: ''
   - key: readability-identifier-naming.EnumConstantCase
-    value: upper_case
+    value: UPPER_CASE
   - key: readability-identifier-naming.EnumConstantPrefixHint
     value: ''
   - key: readability-identifier-naming.TypedefCase
@@ -44,15 +48,19 @@ CheckOptions:
   - key: readability-identifier-naming.TypedefPrefixHint
     value: ''
   - key: readability-identifier-naming.GlobalConstantCase
-    value: upper_case
+    value: UPPER_CASE
   - key: readability-identifier-naming.GlobalConstantPrefixHint
     value: ''
   - key: readability-identifier-naming.MacroDefinitionCase
-    value: upper_case
+    value: UPPER_CASE
   - key: readability-identifier-naming.MacroDefinitionPrefixHint
     value: ''
+  # 忽略特性测试宏（如 _GNU_SOURCE）的命名检查
+  - key: readability-identifier-naming.MacroDefinitionIgnoredRegexp
+    value: '^_[A-Z].*'
+  - key: readability-braces-around-statements.ShortStatementLines
+    value: '0'
+  - key: readability-braces-around-statements.IgnoreMacros
+    value: 'true'
 
-# 排除不检查的路径
-ExcludePaths:
-  - 'lib/cJSON/.*'
 ...

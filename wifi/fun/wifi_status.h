@@ -14,8 +14,8 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-#ifndef __WIFI_STATUS_H__
-#define __WIFI_STATUS_H__
+#ifndef WIFI_STATUS_H
+#define WIFI_STATUS_H
 #include "cJSON.h"
 #include "civetweb.h"
 void wifi_status(struct mg_connection *conn, size_t index, cJSON *root);

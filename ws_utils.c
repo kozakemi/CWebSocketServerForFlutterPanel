@@ -30,4 +30,3 @@ int ws_send_text(struct mg_connection *conn, const char *text)
     const int n = mg_websocket_write(conn, MG_WEBSOCKET_OPCODE_TEXT, text, len);
     return n;
 }
-

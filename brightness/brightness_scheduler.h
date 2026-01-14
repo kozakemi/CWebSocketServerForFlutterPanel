@@ -14,13 +14,12 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-#ifndef __BRIGHTNESS_SCHEDULER_H__
-#define __BRIGHTNESS_SCHEDULER_H__
-#include "cJSON.h"
+#ifndef BRIGHTNESS_SCHEDULER_H
+#define BRIGHTNESS_SCHEDULER_H
 #include "brightness_def.h"
+#include "cJSON.h"
 #include "civetweb.h"
 #include <stdint.h>
-
 
 typedef struct
 {
