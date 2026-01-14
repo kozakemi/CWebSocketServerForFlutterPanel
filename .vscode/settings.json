@@ -1,9 +1,48 @@
 {
+    // ===== 编辑器基本设置 =====
     "editor.formatOnSave": true,
     "editor.defaultFormatter": "xaver.clang-format",
+
+    // ===== clang-format 扩展配置 (xaver.clang-format) =====
+    // 使用项目根目录的 .clang-format 文件
     "clang-format.style": "file",
+    // 如果找不到 .clang-format 文件，不使用备用风格
     "clang-format.fallbackStyle": "None",
+    // 指定要格式化的文件类型
+    "clang-format.language.c.enable": true,
+    "clang-format.language.cpp.enable": true,
+    "clang-format.language.h.enable": true,
+
+    // ===== clangd 扩展配置 (llvm-vs-code-extensions.vscode-clangd) =====
+    "clangd.arguments": [
+        // 指定 compile_commands.json 所在目录（CMake 构建目录）
+        "--compile-commands-dir=${workspaceFolder}/build",
+        // 启用 clang-tidy 检查，使用项目根目录的 .clang-tidy 文件
+        "--clang-tidy",
+        // 在后台索引项目
+        "--background-index",
+        // 显示代码补全详情
+        "--completion-style=detailed",
+        // 头文件插入风格
+        "--header-insertion=iwyu",
+        // 日志级别
+        "--log=error"
+    ],
+    // 禁用 clangd 自带的格式化功能，使用 clang-format 扩展
+    "clangd.enableCodeActions": true,
+    "clangd.checkUpdates": false,
+
+    // ===== C 语言特定设置 =====
     "[c]": {
         "editor.defaultFormatter": "xaver.clang-format"
+    },
+    "[cpp]": {
+        "editor.defaultFormatter": "xaver.clang-format"
+    },
+
+    // ===== 文件关联 =====
+    "files.associations": {
+        "*.h": "c",
+        "*.c": "c"
     }
 }

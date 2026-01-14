@@ -14,13 +14,12 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-#ifndef __WIFI_SCHEDULER_H__
-#define __WIFI_SCHEDULER_H__
-#include "../lib/cJSON/cJSON.h"
+#ifndef WIFI_SCHEDULER_H
+#define WIFI_SCHEDULER_H
+#include "cJSON.h"
+#include "civetweb.h"
 #include "wifi_def.h"
-#include <libwebsockets.h>
 #include <stdint.h>
-
 
 /**
  * @brief wifi调度结构体定义
@@ -30,9 +29,9 @@ typedef struct
 {
     char *request;
     char *response;
-    void (*handler)(struct lws *wsi, size_t index, cJSON *root);
+    void (*handler)(struct mg_connection *conn, size_t index, cJSON *root);
 } wifi_dispatch;
 
-void wifi_scheduler(struct lws *wsi, cJSON *root);
+void wifi_scheduler(struct mg_connection *conn, cJSON *root);
 wifi_dispatch *wifi_dispatch_get_by_index(size_t index);
 #endif

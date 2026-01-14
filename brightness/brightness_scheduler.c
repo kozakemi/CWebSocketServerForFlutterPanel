@@ -15,7 +15,7 @@ limitations under the License.
 */
 
 #include "brightness_scheduler.h"
-#include "../lib/cJSON/cJSON.h"
+#include "cJSON.h"
 #include "fun/brightness_set.h"
 #include "fun/brightness_status.h"
 #include <stdbool.h>
@@ -24,7 +24,6 @@ limitations under the License.
 #include <stdlib.h>
 #include <string.h>
 #include <time.h>
-
 
 /**
  * @brief 亮度调度数组定义
@@ -54,11 +53,10 @@ brightness_dispatch *brightness_dispatch_get_by_index(size_t index)
 /**
  * @brief 亮度调度器
  *
- * @param wsi WebSocket实例指针
- * @param index 调度项索引
+ * @param conn WebSocket连接指针
  * @param root JSON根对象指针
  */
-void brightness_scheduler(struct lws *wsi, cJSON *root)
+void brightness_scheduler(struct mg_connection *conn, cJSON *root)
 {
     cJSON *type_item = cJSON_GetObjectItemCaseSensitive(root, "type");
 
@@ -74,7 +72,7 @@ void brightness_scheduler(struct lws *wsi, cJSON *root)
         {
             if (brightness_dispatch_table[i].handler != NULL)
             {
-                brightness_dispatch_table[i].handler(wsi, i, root);
+                brightness_dispatch_table[i].handler(conn, i, root);
             }
             return;
         }

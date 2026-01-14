@@ -14,10 +14,10 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-#ifndef __BRIGHTNESS_STATUS_H__
-#define __BRIGHTNESS_STATUS_H__
-#include "../../lib/cJSON/cJSON.h"
-#include <libwebsockets.h>
+#ifndef BRIGHTNESS_STATUS_H
+#define BRIGHTNESS_STATUS_H
+#include "cJSON.h"
+#include "civetweb.h"
 
-void brightness_status(struct lws *wsi, size_t index, cJSON *root);
+void brightness_status(struct mg_connection *conn, size_t index, cJSON *root);
 #endif

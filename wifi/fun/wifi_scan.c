@@ -15,16 +15,15 @@ limitations under the License.
 */
 
 #include "wifi_scan.h"
-#include "../../lib/cJSON/cJSON.h"
+#include "../../ws_utils.h"
 #include "../wifi_def.h"
 #include "../wifi_scheduler.h"
-#include "../../ws_utils.h"
-#include <libwebsockets.h>
+#include "cJSON.h"
+#include "civetweb.h"
 #include <stdbool.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-
 
 /**
  * @brief wifi扫描错误枚举
@@ -118,34 +117,22 @@ typedef struct
     size_t network_count;
 } wifi_scan_res;
 
-wifi_scan_req wifi_scan_req_instance;
-wifi_scan_res wifi_scan_res_instance;
-
 /**
  * @brief 执行WiFi扫描操作
  *
  * @param rescan 是否强制重新扫描
- * @return int 错误码
+ * @param res_instance 响应实例指针
+ * @return wifi_error_t 错误码
  */
-static wifi_error_t wifi_scan_execution(bool rescan)
+static wifi_error_t wifi_scan_execution(bool rescan, wifi_scan_res *res_instance)
 {
     FILE *fp;
     char buffer[512];
     char command[256];
 
-    // 释放之前分配的内存（如果有）
-    if (wifi_scan_res_instance.networks)
-    {
-        for (size_t i = 0; i < wifi_scan_res_instance.network_count; i++)
-        {
-            free(wifi_scan_res_instance.networks[i].ssid);
-            free(wifi_scan_res_instance.networks[i].bssid);
-            free(wifi_scan_res_instance.networks[i].security);
-        }
-        free(wifi_scan_res_instance.networks);
-        wifi_scan_res_instance.networks = NULL;
-        wifi_scan_res_instance.network_count = 0;
-    }
+    // 初始化响应实例
+    res_instance->networks = NULL;
+    res_instance->network_count = 0;
 
     // 执行扫描命令
     // 使用wpa_cli扫描WiFi网络
@@ -388,8 +375,8 @@ static wifi_error_t wifi_scan_execution(bool rescan)
         temp_networks = NULL;
     }
 
-    wifi_scan_res_instance.networks = temp_networks;
-    wifi_scan_res_instance.network_count = count;
+    res_instance->networks = temp_networks;
+    res_instance->network_count = count;
 
     return WIFI_ERR_OK;
 }
@@ -397,32 +384,36 @@ static wifi_error_t wifi_scan_execution(bool rescan)
 /**
  * @brief 扫描WiFi网络
  *
- * @param wsi
- * @param index
- * @param root
+ * @param conn WebSocket 连接指针
+ * @param index 调度索引
+ * @param root JSON 根对象指针
  */
-void wifi_scan(struct lws *wsi, size_t index, cJSON *root)
+void wifi_scan(struct mg_connection *conn, size_t index, cJSON *root)
 {
     int ret = 0;
+    // 使用局部变量避免多线程竞争
+    wifi_scan_req req_instance = {0};
+    wifi_scan_res res_instance = {0};
 
     // { "type": "wifi_scan_request", "data": { "rescan": true } }
     cJSON *type = cJSON_GetObjectItem(root, "type");
-    wifi_scan_req_instance.type = (cJSON_IsString(type) && type->valuestring) ? type->valuestring : NULL;
+    req_instance.type = (cJSON_IsString(type) && type->valuestring) ? type->valuestring : NULL;
     cJSON *request_id = cJSON_GetObjectItem(root, "request_id");
-    wifi_scan_req_instance.request_id =
+    req_instance.request_id =
         (cJSON_IsString(request_id) && request_id->valuestring) ? request_id->valuestring : "";
 
     cJSON *data = cJSON_GetObjectItem(root, "data");
     cJSON *rescan_item = data ? cJSON_GetObjectItem(data, "rescan") : NULL;
-    wifi_scan_req_instance.rescan = (rescan_item && cJSON_IsBool(rescan_item)) ? cJSON_IsTrue(rescan_item) : false;
+    req_instance.rescan =
+        (rescan_item && cJSON_IsBool(rescan_item)) ? cJSON_IsTrue(rescan_item) : false;
 
-    ret = wifi_scan_execution(wifi_scan_req_instance.rescan); // 执行扫描操作
+    ret = wifi_scan_execution(req_instance.rescan, &res_instance); // 执行扫描操作
 
     // 根据执行结果构建响应数据
-    wifi_scan_res_instance.type = wifi_dispatch_get_by_index(index)->response; // 使用响应类型
-    wifi_scan_res_instance.success = (ret == WIFI_ERR_OK);                     // 设置成功标志
-    wifi_scan_res_instance.error = ret;                                        // 设置错误码
-    wifi_scan_res_instance.request_id = wifi_scan_req_instance.request_id;     // 回显request_id
+    res_instance.type = wifi_dispatch_get_by_index(index)->response; // 使用响应类型
+    res_instance.success = (ret == WIFI_ERR_OK);                     // 设置成功标志
+    res_instance.error = ret;                                        // 设置错误码
+    res_instance.request_id = req_instance.request_id;               // 回显request_id
 
     /**
      * {
@@ -445,29 +436,28 @@ void wifi_scan(struct lws *wsi, size_t index, cJSON *root)
      */
     cJSON *response = cJSON_CreateObject();
     cJSON *res_data = cJSON_CreateObject();
-    cJSON_AddStringToObject(response, "type", wifi_scan_res_instance.type);
-    cJSON_AddStringToObject(response, "request_id", wifi_scan_res_instance.request_id);
-    cJSON_AddBoolToObject(response, "success", wifi_scan_res_instance.success);
-    cJSON_AddNumberToObject(response, "error", wifi_scan_res_instance.error);
+    cJSON_AddStringToObject(response, "type", res_instance.type);
+    cJSON_AddStringToObject(response, "request_id", res_instance.request_id);
+    cJSON_AddBoolToObject(response, "success", res_instance.success);
+    cJSON_AddNumberToObject(response, "error", res_instance.error);
 
     // 添加网络列表
     cJSON *networks_array = cJSON_CreateArray();
-    for (size_t i = 0; i < wifi_scan_res_instance.network_count; i++)
+    for (size_t i = 0; i < res_instance.network_count; i++)
     {
         cJSON *network_obj = cJSON_CreateObject();
-        cJSON_AddStringToObject(network_obj, "ssid",
-                                (wifi_scan_res_instance.networks[i].ssid &&
-                                 strlen(wifi_scan_res_instance.networks[i].ssid) > 0)
-                                    ? wifi_scan_res_instance.networks[i].ssid
-                                    : "");
-        cJSON_AddStringToObject(network_obj, "bssid", wifi_scan_res_instance.networks[i].bssid);
-        cJSON_AddNumberToObject(network_obj, "signal", wifi_scan_res_instance.networks[i].signal);
-        cJSON_AddStringToObject(network_obj, "security",
-                                wifi_scan_res_instance.networks[i].security);
-        cJSON_AddNumberToObject(network_obj, "channel", wifi_scan_res_instance.networks[i].channel);
+        cJSON_AddStringToObject(
+            network_obj, "ssid",
+            (res_instance.networks[i].ssid && strlen(res_instance.networks[i].ssid) > 0)
+                ? res_instance.networks[i].ssid
+                : "");
+        cJSON_AddStringToObject(network_obj, "bssid", res_instance.networks[i].bssid);
+        cJSON_AddNumberToObject(network_obj, "signal", res_instance.networks[i].signal);
+        cJSON_AddStringToObject(network_obj, "security", res_instance.networks[i].security);
+        cJSON_AddNumberToObject(network_obj, "channel", res_instance.networks[i].channel);
         cJSON_AddNumberToObject(network_obj, "frequency_mhz",
-                                wifi_scan_res_instance.networks[i].frequency_mhz);
-        cJSON_AddBoolToObject(network_obj, "recorded", wifi_scan_res_instance.networks[i].recorded);
+                                res_instance.networks[i].frequency_mhz);
+        cJSON_AddBoolToObject(network_obj, "recorded", res_instance.networks[i].recorded);
         cJSON_AddItemToArray(networks_array, network_obj);
     }
 
@@ -484,7 +474,7 @@ void wifi_scan(struct lws *wsi, size_t index, cJSON *root)
     else
     {
         printf("wifi_scan: %s\n", response_str);
-        int n = ws_send_text(wsi, response_str);
+        int n = ws_send_text(conn, response_str);
         if (n < 0)
         {
             printf("wifi_scan: Failed to write response\n");
@@ -495,19 +485,23 @@ void wifi_scan(struct lws *wsi, size_t index, cJSON *root)
     cJSON_Delete(response);
 
     // 释放动态分配的内存
-    if (wifi_scan_res_instance.networks)
+    if (res_instance.networks)
     {
-        for (size_t i = 0; i < wifi_scan_res_instance.network_count; i++)
+        for (size_t i = 0; i < res_instance.network_count; i++)
         {
-            if (wifi_scan_res_instance.networks[i].ssid)
-                free(wifi_scan_res_instance.networks[i].ssid);
-            if (wifi_scan_res_instance.networks[i].bssid)
-                free(wifi_scan_res_instance.networks[i].bssid);
-            if (wifi_scan_res_instance.networks[i].security)
-                free(wifi_scan_res_instance.networks[i].security);
+            if (res_instance.networks[i].ssid)
+            {
+                free(res_instance.networks[i].ssid);
+            }
+            if (res_instance.networks[i].bssid)
+            {
+                free(res_instance.networks[i].bssid);
+            }
+            if (res_instance.networks[i].security)
+            {
+                free(res_instance.networks[i].security);
+            }
         }
-        free(wifi_scan_res_instance.networks);
-        wifi_scan_res_instance.networks = NULL;
-        wifi_scan_res_instance.network_count = 0;
+        free(res_instance.networks);
     }
 }

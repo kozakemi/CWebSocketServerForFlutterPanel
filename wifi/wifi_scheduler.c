@@ -15,7 +15,7 @@ limitations under the License.
 */
 
 #include "wifi_scheduler.h"
-#include "../lib/cJSON/cJSON.h"
+#include "cJSON.h"
 #include "fun/wifi_connect.h"
 #include "fun/wifi_disconnect.h"
 #include "fun/wifi_enable.h"
@@ -39,7 +39,7 @@ wifi_dispatch wifi_dispatch_table[] = {
     {"wifi_disconnect_request", "wifi_disconnect_response", wifi_disconnect}, // 断开wifi
 };
 
-#define wifi_dispatch_table_LEN (sizeof(wifi_dispatch_table) / sizeof(wifi_dispatch_table[0]))
+#define WIFI_DISPATCH_TABLE_LEN (sizeof(wifi_dispatch_table) / sizeof(wifi_dispatch_table[0]))
 
 /**
  * @brief 获取wifi调度
@@ -50,7 +50,7 @@ wifi_dispatch wifi_dispatch_table[] = {
 wifi_dispatch *wifi_dispatch_get_by_index(size_t index)
 {
     // index is 0..LEN-1; LEN is out-of-bounds
-    if (index >= wifi_dispatch_table_LEN)
+    if (index >= WIFI_DISPATCH_TABLE_LEN)
     {
         return NULL;
     }
@@ -62,10 +62,10 @@ wifi_dispatch *wifi_dispatch_get_by_index(size_t index)
  *
  * @details 不需要释放root，外层释放
  *
- * @param wsi
+ * @param conn
  * @param root
  */
-void wifi_scheduler(struct lws *wsi, cJSON *root)
+void wifi_scheduler(struct mg_connection *conn, cJSON *root)
 {
     cJSON *type_item = cJSON_GetObjectItemCaseSensitive(root, "type");
 
@@ -75,13 +75,13 @@ void wifi_scheduler(struct lws *wsi, cJSON *root)
         return;
     }
 
-    for (size_t i = 0; i < wifi_dispatch_table_LEN; i++)
+    for (size_t i = 0; i < WIFI_DISPATCH_TABLE_LEN; i++)
     {
         if (strcmp(type_item->valuestring, wifi_dispatch_table[i].request) == 0)
         {
             if (wifi_dispatch_table[i].handler != NULL)
             {
-                wifi_dispatch_table[i].handler(wsi, i, root);
+                wifi_dispatch_table[i].handler(conn, i, root);
             }
             return;
         }

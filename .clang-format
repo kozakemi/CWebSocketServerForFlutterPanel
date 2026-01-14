@@ -12,4 +12,14 @@ BreakBeforeBraces: Allman
 ColumnLimit: 100
 
 # 控制语句缩进
-IndentCaseLabels: true
+IndentCaseLabels: false
+
+# 注释折行
+ReflowComments: true
+
+# 控制短函数和代码块的大括号格式
+AllowShortFunctionsOnASingleLine: None
+AllowShortBlocksOnASingleLine: false
+AllowShortCaseLabelsOnASingleLine: false
+AllowShortIfStatementsOnASingleLine: false
+AllowShortLoopsOnASingleLine: false

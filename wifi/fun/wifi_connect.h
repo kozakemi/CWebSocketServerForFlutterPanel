@@ -14,9 +14,9 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-#ifndef __WIFI_CONNECT_H__
-#define __WIFI_CONNECT_H__
-#include "../../lib/cJSON/cJSON.h"
-#include <libwebsockets.h>
-void wifi_connect(struct lws *wsi, size_t index, cJSON *root);
+#ifndef WIFI_CONNECT_H
+#define WIFI_CONNECT_H
+#include "cJSON.h"
+#include "civetweb.h"
+void wifi_connect(struct mg_connection *conn, size_t index, cJSON *root);
 #endif

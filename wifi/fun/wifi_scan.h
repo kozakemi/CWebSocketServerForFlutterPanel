@@ -14,12 +14,12 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-#ifndef __WIFI_SCAN_H__
-#define __WIFI_SCAN_H__
-#include "../../lib/cJSON/cJSON.h"
-#include <libwebsockets.h>
+#ifndef WIFI_SCAN_H
+#define WIFI_SCAN_H
+#include "cJSON.h"
+#include "civetweb.h"
 #include <stddef.h>
 
-void wifi_scan(struct lws *wsi, size_t index, cJSON *root);
+void wifi_scan(struct mg_connection *conn, size_t index, cJSON *root);
 
 #endif

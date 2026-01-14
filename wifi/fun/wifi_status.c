@@ -15,16 +15,15 @@ limitations under the License.
 */
 
 #include "wifi_status.h"
-#include "../../lib/cJSON/cJSON.h"
+#include "../../ws_utils.h"
 #include "../wifi_def.h"
 #include "../wifi_scheduler.h"
-#include "../../ws_utils.h"
-#include <libwebsockets.h>
+#include "cJSON.h"
+#include "civetweb.h"
 #include <stdbool.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-
 
 /************* 请求 ***************/
 
@@ -59,26 +58,25 @@ typedef struct
     wifi_status_data data;
 } wifi_status_res;
 
-wifi_status_req wifi_status_req_instance;
-wifi_status_res wifi_status_res_instance;
 /**
  * @brief 执行连接状态操作
  *
- * @return int
+ * @param res_instance 响应实例指针
+ * @return wifi_error_t
  */
-static wifi_error_t wifi_status_execution(void)
+static wifi_error_t wifi_status_execution(wifi_status_res *res_instance)
 {
     // 初始化数据结构
-    wifi_status_res_instance.data.enable = false;
-    wifi_status_res_instance.data.connected = false;
-    wifi_status_res_instance.data.ssid = "";
-    wifi_status_res_instance.data.bssid = "";
-    wifi_status_res_instance.data.interface = WIFI_DEVICE;
-    wifi_status_res_instance.data.ip = "";
-    wifi_status_res_instance.data.signal = 0;
-    wifi_status_res_instance.data.security = "";
-    wifi_status_res_instance.data.channel = 0;
-    wifi_status_res_instance.data.frequency_mhz = 0;
+    res_instance->data.enable = false;
+    res_instance->data.connected = false;
+    res_instance->data.ssid = NULL;
+    res_instance->data.bssid = NULL;
+    res_instance->data.interface = WIFI_DEVICE;
+    res_instance->data.ip = NULL;
+    res_instance->data.signal = 0;
+    res_instance->data.security = NULL;
+    res_instance->data.channel = 0;
+    res_instance->data.frequency_mhz = 0;
 
     FILE *fp;
     char buffer[256];
@@ -93,17 +91,17 @@ static wifi_error_t wifi_status_execution(void)
         if (fgets(buffer, sizeof(buffer), fp) != NULL)
         {
             // 如果能获取到状态信息，则认为WiFi已启用
-            wifi_status_res_instance.data.enable =
+            res_instance->data.enable =
                 (strstr(buffer, "COMPLETED") != NULL || strstr(buffer, "ASSOCIATED") != NULL ||
                  strstr(buffer, "ASSOCIATING") != NULL || strstr(buffer, "SCANNING") != NULL);
             // 如果已连接
-            wifi_status_res_instance.data.connected = (strstr(buffer, "COMPLETED") != NULL);
+            res_instance->data.connected = (strstr(buffer, "COMPLETED") != NULL);
         }
         pclose(fp);
     }
 
     // 获取SSID
-    if (wifi_status_res_instance.data.enable)
+    if (res_instance->data.enable)
     {
         snprintf(command, sizeof(command),
                  "wpa_cli -i %s status 2>/dev/null | grep '^ssid=' | cut -d= -f2", WIFI_DEVICE);
@@ -114,7 +112,7 @@ static wifi_error_t wifi_status_execution(void)
             {
                 // 移除换行符
                 buffer[strcspn(buffer, "\n")] = 0;
-                wifi_status_res_instance.data.ssid = strdup(buffer);
+                res_instance->data.ssid = strdup(buffer);
             }
             pclose(fp);
         }
@@ -129,7 +127,7 @@ static wifi_error_t wifi_status_execution(void)
             {
                 // 移除换行符
                 buffer[strcspn(buffer, "\n")] = 0;
-                wifi_status_res_instance.data.bssid = strdup(buffer);
+                res_instance->data.bssid = strdup(buffer);
             }
             pclose(fp);
         }
@@ -142,7 +140,7 @@ static wifi_error_t wifi_status_execution(void)
         {
             if (fgets(buffer, sizeof(buffer), fp) != NULL)
             {
-                wifi_status_res_instance.data.signal = atoi(buffer);
+                res_instance->data.signal = atoi(buffer);
             }
             pclose(fp);
         }
@@ -158,7 +156,7 @@ static wifi_error_t wifi_status_execution(void)
             {
                 // 移除换行符
                 buffer[strcspn(buffer, "\n")] = 0;
-                wifi_status_res_instance.data.ip = strdup(buffer);
+                res_instance->data.ip = strdup(buffer);
             }
             pclose(fp);
         }
@@ -173,7 +171,7 @@ static wifi_error_t wifi_status_execution(void)
             {
                 // 移除换行符
                 buffer[strcspn(buffer, "\n")] = 0;
-                wifi_status_res_instance.data.security = strdup(buffer);
+                res_instance->data.security = strdup(buffer);
             }
             pclose(fp);
         }
@@ -186,7 +184,7 @@ static wifi_error_t wifi_status_execution(void)
         {
             if (fgets(buffer, sizeof(buffer), fp) != NULL)
             {
-                wifi_status_res_instance.data.channel = atoi(buffer);
+                res_instance->data.channel = atoi(buffer);
             }
             pclose(fp);
         }
@@ -199,7 +197,7 @@ static wifi_error_t wifi_status_execution(void)
         {
             if (fgets(buffer, sizeof(buffer), fp) != NULL)
             {
-                wifi_status_res_instance.data.frequency_mhz = atoi(buffer);
+                res_instance->data.frequency_mhz = atoi(buffer);
             }
             pclose(fp);
         }
@@ -211,27 +209,31 @@ static wifi_error_t wifi_status_execution(void)
 /**
  * @brief 获取wifi状态
  *
- * @param wsi
- * @param index
- * @param root
+ * @param conn WebSocket 连接指针
+ * @param index 调度索引
+ * @param root JSON 根对象指针
  */
-void wifi_status(struct lws *wsi, size_t index, cJSON *root)
+void wifi_status(struct mg_connection *conn, size_t index, cJSON *root)
 {
     int ret = 0;
+    // 使用局部变量避免多线程竞争
+    wifi_status_req req_instance = {0};
+    wifi_status_res res_instance = {0};
+
     // { "type": "wifi_status_request", "data": {} }
     cJSON *type = cJSON_GetObjectItem(root, "type");
-    wifi_status_req_instance.type = (cJSON_IsString(type) && type->valuestring) ? type->valuestring : NULL;
+    req_instance.type = (cJSON_IsString(type) && type->valuestring) ? type->valuestring : NULL;
     cJSON *request_id = cJSON_GetObjectItem(root, "request_id");
-    wifi_status_req_instance.request_id =
+    req_instance.request_id =
         (cJSON_IsString(request_id) && request_id->valuestring) ? request_id->valuestring : "";
 
-    ret = wifi_status_execution(); // 执行状态获取操作
+    ret = wifi_status_execution(&res_instance); // 执行状态获取操作
 
     // 根据执行结果构建响应数据
-    wifi_status_res_instance.type = wifi_dispatch_get_by_index(index)->response; // 使用响应类型
-    wifi_status_res_instance.success = (ret == WIFI_ERR_OK);                   // 设置成功标志
-    wifi_status_res_instance.error = ret;                                      // 设置错误码
-    wifi_status_res_instance.request_id = wifi_status_req_instance.request_id; // 回显request_id
+    res_instance.type = wifi_dispatch_get_by_index(index)->response; // 使用响应类型
+    res_instance.success = (ret == WIFI_ERR_OK);                     // 设置成功标志
+    res_instance.error = ret;                                        // 设置错误码
+    res_instance.request_id = req_instance.request_id;               // 回显request_id
 
     /**
      * {
@@ -253,57 +255,56 @@ void wifi_status(struct lws *wsi, size_t index, cJSON *root)
      */
     cJSON *response = cJSON_CreateObject();
     cJSON *res_data = cJSON_CreateObject();
-    cJSON_AddStringToObject(response, "type", wifi_status_res_instance.type);
-    cJSON_AddStringToObject(response, "request_id", wifi_status_res_instance.request_id);
-    cJSON_AddBoolToObject(response, "success", wifi_status_res_instance.success);
-    cJSON_AddNumberToObject(response, "error", wifi_status_res_instance.error);
+    cJSON_AddStringToObject(response, "type", res_instance.type);
+    cJSON_AddStringToObject(response, "request_id", res_instance.request_id);
+    cJSON_AddBoolToObject(response, "success", res_instance.success);
+    cJSON_AddNumberToObject(response, "error", res_instance.error);
 
-    cJSON_AddBoolToObject(res_data, "enable", wifi_status_res_instance.data.enable);
-    cJSON_AddBoolToObject(res_data, "connected", wifi_status_res_instance.data.connected);
+    cJSON_AddBoolToObject(res_data, "enable", res_instance.data.enable);
+    cJSON_AddBoolToObject(res_data, "connected", res_instance.data.connected);
 
-    if (wifi_status_res_instance.data.ssid && strlen(wifi_status_res_instance.data.ssid) > 0)
+    if (res_instance.data.ssid)
     {
-        cJSON_AddStringToObject(res_data, "ssid", wifi_status_res_instance.data.ssid);
+        cJSON_AddStringToObject(res_data, "ssid", res_instance.data.ssid);
     }
     else
     {
         cJSON_AddStringToObject(res_data, "ssid", "");
     }
 
-    if (wifi_status_res_instance.data.bssid && strlen(wifi_status_res_instance.data.bssid) > 0)
+    if (res_instance.data.bssid)
     {
-        cJSON_AddStringToObject(res_data, "bssid", wifi_status_res_instance.data.bssid);
+        cJSON_AddStringToObject(res_data, "bssid", res_instance.data.bssid);
     }
     else
     {
         cJSON_AddStringToObject(res_data, "bssid", "");
     }
 
-    cJSON_AddStringToObject(res_data, "interface", wifi_status_res_instance.data.interface);
+    cJSON_AddStringToObject(res_data, "interface", res_instance.data.interface);
 
-    if (wifi_status_res_instance.data.ip && strlen(wifi_status_res_instance.data.ip) > 0)
+    if (res_instance.data.ip)
     {
-        cJSON_AddStringToObject(res_data, "ip", wifi_status_res_instance.data.ip);
+        cJSON_AddStringToObject(res_data, "ip", res_instance.data.ip);
     }
     else
     {
         cJSON_AddStringToObject(res_data, "ip", "");
     }
 
-    cJSON_AddNumberToObject(res_data, "signal", wifi_status_res_instance.data.signal);
+    cJSON_AddNumberToObject(res_data, "signal", res_instance.data.signal);
 
-    if (wifi_status_res_instance.data.security &&
-        strlen(wifi_status_res_instance.data.security) > 0)
+    if (res_instance.data.security)
     {
-        cJSON_AddStringToObject(res_data, "security", wifi_status_res_instance.data.security);
+        cJSON_AddStringToObject(res_data, "security", res_instance.data.security);
     }
     else
     {
         cJSON_AddStringToObject(res_data, "security", "");
     }
 
-    cJSON_AddNumberToObject(res_data, "channel", wifi_status_res_instance.data.channel);
-    cJSON_AddNumberToObject(res_data, "frequency_mhz", wifi_status_res_instance.data.frequency_mhz);
+    cJSON_AddNumberToObject(res_data, "channel", res_instance.data.channel);
+    cJSON_AddNumberToObject(res_data, "frequency_mhz", res_instance.data.frequency_mhz);
 
     cJSON_AddItemToObject(response, "data", res_data);
 
@@ -317,7 +318,7 @@ void wifi_status(struct lws *wsi, size_t index, cJSON *root)
     else
     {
         printf("wifi_status: %s\n", response_str);
-        int n = ws_send_text(wsi, response_str);
+        int n = ws_send_text(conn, response_str);
         if (n < 0)
         {
             printf("wifi_status: Failed to write response\n");
@@ -326,22 +327,21 @@ void wifi_status(struct lws *wsi, size_t index, cJSON *root)
     }
 
     // 释放动态分配的内存
-    if (wifi_status_res_instance.data.ssid && strlen(wifi_status_res_instance.data.ssid) > 0)
+    if (res_instance.data.ssid)
     {
-        free(wifi_status_res_instance.data.ssid);
+        free(res_instance.data.ssid);
     }
-    if (wifi_status_res_instance.data.bssid && strlen(wifi_status_res_instance.data.bssid) > 0)
+    if (res_instance.data.bssid)
     {
-        free(wifi_status_res_instance.data.bssid);
+        free(res_instance.data.bssid);
     }
-    if (wifi_status_res_instance.data.ip && strlen(wifi_status_res_instance.data.ip) > 0)
+    if (res_instance.data.ip)
     {
-        free(wifi_status_res_instance.data.ip);
+        free(res_instance.data.ip);
     }
-    if (wifi_status_res_instance.data.security &&
-        strlen(wifi_status_res_instance.data.security) > 0)
+    if (res_instance.data.security)
     {
-        free(wifi_status_res_instance.data.security);
+        free(res_instance.data.security);
     }
     cJSON_Delete(response);
 }

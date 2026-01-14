@@ -14,17 +14,16 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-#include "../../lib/cJSON/cJSON.h"
+#include "../../ws_utils.h"
 #include "../brightness_def.h"
 #include "../brightness_scheduler.h"
-#include "../../ws_utils.h"
+#include "cJSON.h"
+#include "civetweb.h"
 #include <errno.h>
-#include <libwebsockets.h>
 #include <stdbool.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-
 
 /************* 请求 ***************/
 
@@ -49,18 +48,19 @@ typedef struct
     brightness_status_res_data data;
 } brightness_status_res;
 
-brightness_status_req brightness_status_req_instance; ///< 亮度状态请求实例
-brightness_status_res brightness_status_res_instance; ///< 亮度状态响应实例
-
 static brightness_error_t read_int_file(const char *path, int *out)
 {
     FILE *fp = fopen(path, "r");
     if (!fp)
     {
         if (errno == EACCES || errno == EPERM)
+        {
             return BRIGHTNESS_ERR_PERMISSION;
+        }
         if (errno == ENOENT)
+        {
             return BRIGHTNESS_ERR_NOT_SUPPORTED;
+        }
         return BRIGHTNESS_ERR_DEVICE_ERROR;
     }
     int value = -1;
@@ -77,59 +77,71 @@ static brightness_error_t read_int_file(const char *path, int *out)
 /**
  * @brief 执行亮度状态请求
  *
- * @param req 亮度状态请求结构体指针
- * @param res 亮度状态响应结构体指针
+ * @param res_instance 亮度状态响应结构体指针
  * @return brightness_error_t 执行结果
  */
-static brightness_error_t brightness_status_execution(void)
+static brightness_error_t brightness_status_execution(brightness_status_res *res_instance)
 {
     int raw = 0;
     int max = 0;
     brightness_error_t err = read_int_file(BRIGHTNESS_SYSFS_BRIGHTNESS_PATH, &raw);
     if (err != BRIGHTNESS_ERR_OK)
+    {
         return err;
+    }
     err = read_int_file(BRIGHTNESS_SYSFS_MAX_BRIGHTNESS_PATH, &max);
     if (err != BRIGHTNESS_ERR_OK)
+    {
         return err;
+    }
     if (max <= 0)
+    {
         return BRIGHTNESS_ERR_DEVICE_ERROR;
+    }
 
     // 计算百分比（四舍五入到 0-100）
     int percent = (int)((double)raw * 100.0 / (double)max + 0.5);
     if (percent < 0)
+    {
         percent = 0;
+    }
     if (percent > 100)
+    {
         percent = 100;
-    brightness_status_res_instance.data.brightness = percent;
+    }
+    res_instance->data.brightness = percent;
     return BRIGHTNESS_ERR_OK;
 }
 
 /**
  * @brief 处理亮度状态请求
  *
- * @param wsi WebSocket 实例指针
+ * @param conn WebSocket 连接指针
  * @param index 调度索引
  * @param root JSON 根对象指针
  */
-void brightness_status(struct lws *wsi, size_t index, cJSON *root)
+void brightness_status(struct mg_connection *conn, size_t index, cJSON *root)
 {
     int ret = 0;
+    // 使用局部变量避免多线程竞争
+    brightness_status_req req_instance = {0};
+    brightness_status_res res_instance = {0};
+
     // 解析请求 { "type": "brightness_status_request", "request_id": "req-1", "data": {} }
     cJSON *type = cJSON_GetObjectItem(root, "type");
-    brightness_status_req_instance.type =
-        (cJSON_IsString(type) && type->valuestring) ? type->valuestring : NULL;
+    req_instance.type = (cJSON_IsString(type) && type->valuestring) ? type->valuestring : NULL;
     cJSON *request_id = cJSON_GetObjectItem(root, "request_id");
-    brightness_status_req_instance.request_id =
+    req_instance.request_id =
         (cJSON_IsString(request_id) && request_id->valuestring) ? request_id->valuestring : "";
 
     // 执行请求
-    ret = brightness_status_execution();
+    ret = brightness_status_execution(&res_instance);
 
     // 构建响应
-    brightness_status_res_instance.type = brightness_dispatch_get_by_index(index)->response;
-    brightness_status_res_instance.request_id = brightness_status_req_instance.request_id;
-    brightness_status_res_instance.success = (ret == BRIGHTNESS_ERR_OK);
-    brightness_status_res_instance.error = ret;
+    res_instance.type = brightness_dispatch_get_by_index(index)->response;
+    res_instance.request_id = req_instance.request_id;
+    res_instance.success = (ret == BRIGHTNESS_ERR_OK);
+    res_instance.error = ret;
     /**
      *{
      *  "type": "brightness_status_response",
@@ -143,11 +155,11 @@ void brightness_status(struct lws *wsi, size_t index, cJSON *root)
      */
     cJSON *response = cJSON_CreateObject();
     cJSON *res_data = cJSON_CreateObject();
-    cJSON_AddStringToObject(response, "type", brightness_status_res_instance.type);
-    cJSON_AddStringToObject(response, "request_id", brightness_status_res_instance.request_id);
-    cJSON_AddBoolToObject(response, "success", brightness_status_res_instance.success);
-    cJSON_AddNumberToObject(response, "error", brightness_status_res_instance.error);
-    cJSON_AddNumberToObject(res_data, "brightness", brightness_status_res_instance.data.brightness);
+    cJSON_AddStringToObject(response, "type", res_instance.type);
+    cJSON_AddStringToObject(response, "request_id", res_instance.request_id);
+    cJSON_AddBoolToObject(response, "success", res_instance.success);
+    cJSON_AddNumberToObject(response, "error", res_instance.error);
+    cJSON_AddNumberToObject(res_data, "brightness", res_instance.data.brightness);
     cJSON_AddItemToObject(response, "data", res_data);
 
     char *response_str = cJSON_PrintUnformatted(response); // 紧凑格式
@@ -159,7 +171,7 @@ void brightness_status(struct lws *wsi, size_t index, cJSON *root)
     else
     {
         printf("brightness_status: %s\n", response_str);
-        int n = ws_send_text(wsi, response_str);
+        int n = ws_send_text(conn, response_str);
         if (n < 0)
         {
             printf("brightness_status: Failed to write response\n");

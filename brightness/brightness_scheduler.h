@@ -14,20 +14,19 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-#ifndef __BRIGHTNESS_SCHEDULER_H__
-#define __BRIGHTNESS_SCHEDULER_H__
-#include "../lib/cJSON/cJSON.h"
+#ifndef BRIGHTNESS_SCHEDULER_H
+#define BRIGHTNESS_SCHEDULER_H
 #include "brightness_def.h"
-#include <libwebsockets.h>
+#include "cJSON.h"
+#include "civetweb.h"
 #include <stdint.h>
-
 
 typedef struct
 {
     char *request;
     char *response;
-    void (*handler)(struct lws *wsi, size_t index, cJSON *root);
+    void (*handler)(struct mg_connection *conn, size_t index, cJSON *root);
 } brightness_dispatch;
 brightness_dispatch *brightness_dispatch_get_by_index(size_t index);
-void brightness_scheduler(struct lws *wsi, cJSON *root);
+void brightness_scheduler(struct mg_connection *conn, cJSON *root);
 #endif
