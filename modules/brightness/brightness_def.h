@@ -19,17 +19,6 @@ limitations under the License.
 
 #include <stddef.h>
 
-// 亮度设备目录可配置：默认 /sys/class/backlight/backlight
-// 可在此处修改，或在编译时通过 -DBRIGHTNESS_SYSFS_DIR="\"/sys/class/backlight/intel_backlight\""
-// 覆盖
-#ifndef BRIGHTNESS_SYSFS_DIR
-#define BRIGHTNESS_SYSFS_DIR "/sys/class/backlight/backlight"
-#endif
-
-// 派生的具体文件路径宏
-#define BRIGHTNESS_SYSFS_BRIGHTNESS_PATH BRIGHTNESS_SYSFS_DIR "/brightness"
-#define BRIGHTNESS_SYSFS_MAX_BRIGHTNESS_PATH BRIGHTNESS_SYSFS_DIR "/max_brightness"
-
 typedef enum
 {
     BRIGHTNESS_ERR_OK = 0,
