@@ -38,15 +38,18 @@ add_subdirectory(lib/civetweb)
 set(SOURCES
     main.c
     ws_utils.c
-    wifi/wifi_scheduler.c
-    wifi/fun/wifi_enable.c
-    wifi/fun/wifi_status.c
-    wifi/fun/wifi_scan.c
-    wifi/fun/wifi_connect.c
-    wifi/fun/wifi_disconnect.c
-    brightness/brightness_scheduler.c
-    brightness/fun/brightness_status.c
-    brightness/fun/brightness_set.c
+    protocol/protocol_utils.c
+    modules/wifi/impl/wifi_impl.c
+    modules/wifi/wifi_scheduler.c
+    modules/wifi/protocol/wifi_enable.c
+    modules/wifi/protocol/wifi_status.c
+    modules/wifi/protocol/wifi_scan.c
+    modules/wifi/protocol/wifi_connect.c
+    modules/wifi/protocol/wifi_disconnect.c
+    modules/brightness/impl/brightness_impl.c
+    modules/brightness/brightness_scheduler.c
+    modules/brightness/protocol/brightness_status.c
+    modules/brightness/protocol/brightness_set.c
 )
 
 # 创建可执行文件
