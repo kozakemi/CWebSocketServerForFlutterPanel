@@ -14,10 +14,10 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-#include "brightness/brightness_scheduler.h"
+#include "modules/brightness/brightness_scheduler.h"
 #include "cJSON.h"
 #include "civetweb.h"
-#include "wifi/wifi_scheduler.h"
+#include "modules/wifi/wifi_scheduler.h"
 #include "ws_utils.h"
 #include <pthread.h>
 #include <signal.h>

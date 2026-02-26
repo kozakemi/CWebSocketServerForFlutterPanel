@@ -16,8 +16,8 @@ limitations under the License.
 
 #include "brightness_scheduler.h"
 #include "cJSON.h"
-#include "fun/brightness_set.h"
-#include "fun/brightness_status.h"
+#include "protocol/brightness_set.h"
+#include "protocol/brightness_status.h"
 #include <stdbool.h>
 #include <stdint.h>
 #include <stdio.h>

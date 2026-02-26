@@ -18,7 +18,6 @@ limitations under the License.
 #define WIFI_DEF_H
 
 #include <stddef.h>
-#define WIFI_DEVICE "wlan0"
 typedef enum
 {
     WIFI_ERR_OK = 0,

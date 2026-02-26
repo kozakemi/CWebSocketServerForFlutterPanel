@@ -16,11 +16,11 @@ limitations under the License.
 
 #include "wifi_scheduler.h"
 #include "cJSON.h"
-#include "fun/wifi_connect.h"
-#include "fun/wifi_disconnect.h"
-#include "fun/wifi_enable.h"
-#include "fun/wifi_scan.h"
-#include "fun/wifi_status.h"
+#include "protocol/wifi_connect.h"
+#include "protocol/wifi_disconnect.h"
+#include "protocol/wifi_enable.h"
+#include "protocol/wifi_scan.h"
+#include "protocol/wifi_status.h"
 #include <stdbool.h>
 #include <stdint.h>
 #include <stdio.h>
