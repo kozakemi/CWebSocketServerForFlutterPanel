@@ -14,10 +14,25 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
+/**
+ * @file brightness_status.h
+ * @author kozakemi (kozakemi@gmail.com)
+ * @brief 查询亮度状态协议声明
+ * @date 2026-03-02
+ *
+ * @copyright Copyright (c) 2026 kozakemi
+ *
+ */
 #ifndef BRIGHTNESS_STATUS_H
 #define BRIGHTNESS_STATUS_H
-#include "cJSON.h"
-#include "civetweb.h"
 
-void brightness_status(struct mg_connection *conn, size_t index, cJSON *root);
+#include "../brightness_def.h"
+
+/**
+ * @brief 处理查询亮度状态请求
+ *
+ * @return brightness_status_resp_t 亮度状态响应
+ */
+brightness_status_resp_t brightness_status(void);
+
 #endif

@@ -14,19 +14,27 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
+/**
+ * @file brightness_scheduler.h
+ * @author kozakemi (kozakemi@gmail.com)
+ * @brief 亮度模块调度器声明
+ * @date 2026-03-02
+ *
+ * @copyright Copyright (c) 2026 kozakemi
+ *
+ */
 #ifndef BRIGHTNESS_SCHEDULER_H
 #define BRIGHTNESS_SCHEDULER_H
-#include "brightness_def.h"
+
 #include "cJSON.h"
 #include "civetweb.h"
-#include <stdint.h>
 
-typedef struct
-{
-    char *request;
-    char *response;
-    void (*handler)(struct mg_connection *conn, size_t index, cJSON *root);
-} brightness_dispatch;
-brightness_dispatch *brightness_dispatch_get_by_index(size_t index);
+/**
+ * @brief 亮度模块消息调度入口
+ *
+ * @param conn WebSocket连接指针
+ * @param root 解析后的JSON根对象
+ */
 void brightness_scheduler(struct mg_connection *conn, cJSON *root);
+
 #endif

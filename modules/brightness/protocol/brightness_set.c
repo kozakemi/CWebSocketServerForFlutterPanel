@@ -14,52 +14,36 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
+/**
+ * @file brightness_set.c
+ * @author kozakemi (kozakemi@gmail.com)
+ * @brief 设置亮度协议处理
+ * @date 2026-03-02
+ *
+ * @copyright Copyright (c) 2026 kozakemi
+ *
+ */
 #include "brightness_set.h"
-#include "../../../protocol/protocol_utils.h"
-#include "../brightness_def.h"
 #include "../impl/brightness_impl.h"
-#include "../brightness_scheduler.h"
-#include "cJSON.h"
-#include "civetweb.h"
-#include <stdbool.h>
-#include <stdio.h>
 
 /**
- * @brief 设置亮度协议处理
+ * @brief 处理设置亮度请求
  *
- * @param conn WebSocket 连接指针
- * @param index 调度索引
- * @param root JSON 根对象指针
+ * @param req 设置亮度请求结构体
+ * @return brightness_set_resp_t 设置亮度响应
  */
-void brightness_set(struct mg_connection *conn, size_t index, cJSON *root)
+brightness_set_resp_t brightness_set(const brightness_set_req_t *req)
 {
-    brightness_error_t ret = BRIGHTNESS_ERR_BAD_REQUEST;
-    int brightness = 0;
-
-    // 解析请求
-    cJSON *data = cJSON_GetObjectItem(root, "data");
-    cJSON *brightness_item = data ? cJSON_GetObjectItem(data, "brightness") : NULL;
-    if (brightness_item && cJSON_IsNumber(brightness_item))
+    brightness_set_resp_t resp = {0};
+    if (!req || !req->valid)
     {
-        brightness = brightness_item->valueint;
-        // 调用业务层执行操作
-        ret = brightness_impl_set(brightness);
+        resp.error = BRIGHTNESS_ERR_BAD_REQUEST;
+        return resp;
     }
-
-    // 获取request_id
-    const char *request_id = protocol_get_request_id(root);
-    const char *response_type = brightness_dispatch_get_by_index(index)->response;
-
-    // 构建响应
-    cJSON *response = protocol_create_response(response_type, request_id, (ret == BRIGHTNESS_ERR_OK), ret);
-    if (response)
+    resp.error = brightness_impl_set(req->brightness);
+    if (resp.error == BRIGHTNESS_ERR_OK)
     {
-        cJSON *res_data = cJSON_GetObjectItem(response, "data");
-        if (res_data && ret == BRIGHTNESS_ERR_OK)
-        {
-            cJSON_AddNumberToObject(res_data, "brightness", brightness);
-        }
-        protocol_send_response(conn, response);
-        cJSON_Delete(response);
+        resp.brightness = req->brightness;
     }
+    return resp;
 }

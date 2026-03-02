@@ -14,59 +14,34 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
+/**
+ * @file wifi_connect.c
+ * @author kozakemi (kozakemi@gmail.com)
+ * @brief WiFi连接协议处理
+ * @date 2026-03-02
+ *
+ * @copyright Copyright (c) 2026 kozakemi
+ *
+ */
 #include "wifi_connect.h"
-#include "../../../protocol/protocol_utils.h"
-#include "../wifi_def.h"
 #include "../impl/wifi_impl.h"
-#include "../wifi_scheduler.h"
-#include "cJSON.h"
-#include "civetweb.h"
-#include <stdbool.h>
-#include <stdio.h>
+#include <string.h>
 
 /**
- * @brief wifi连接协议处理
+ * @brief 处理WiFi连接请求
  *
- * @param conn WebSocket 连接指针
- * @param index 调度数组索引值
- * @param root json对象
+ * @param req 连接请求结构体
+ * @return wifi_connect_resp_t 连接响应结构体
  */
-void wifi_connect(struct mg_connection *conn, size_t index, cJSON *root)
+wifi_connect_resp_t wifi_connect(const wifi_connect_req_t *req)
 {
-    wifi_error_t ret = WIFI_ERR_BAD_REQUEST;
-    const char *ssid = NULL;
-    const char *password = NULL;
-    int timeout_ms = 20000;
-
-    // 解析请求
-    cJSON *data = cJSON_GetObjectItem(root, "data");
-    cJSON *ssid_item = data ? cJSON_GetObjectItem(data, "ssid") : NULL;
-    cJSON *password_item = data ? cJSON_GetObjectItem(data, "password") : NULL;
-    cJSON *timeout_item = data ? cJSON_GetObjectItem(data, "timeout_ms") : NULL;
-
-    if (ssid_item && cJSON_IsString(ssid_item) && ssid_item->valuestring)
+    wifi_connect_resp_t resp = {0};
+    if (!req || !req->valid)
     {
-        ssid = ssid_item->valuestring;
-        password = (password_item && cJSON_IsString(password_item) && password_item->valuestring)
-                       ? password_item->valuestring
-                       : NULL;
-        timeout_ms =
-            (timeout_item && cJSON_IsNumber(timeout_item)) ? timeout_item->valueint : 20000;
-
-        // 调用业务层执行操作
-        ret = wifi_impl_connect(ssid, password, timeout_ms);
+        resp.error = WIFI_ERR_BAD_REQUEST;
+        return resp;
     }
-
-    // 获取request_id
-    const char *request_id = protocol_get_request_id(root);
-    const char *response_type = wifi_dispatch_get_by_index(index)->response;
-
-    // 构建响应
-    cJSON *response =
-        protocol_create_response(response_type, request_id, (ret == WIFI_ERR_OK), ret);
-    if (response)
-    {
-        protocol_send_response(conn, response);
-        cJSON_Delete(response);
-    }
+    const char *password = (strlen(req->password) > 0) ? req->password : NULL;
+    resp.error = wifi_impl_connect(req->ssid, password, req->timeout_ms);
+    return resp;
 }

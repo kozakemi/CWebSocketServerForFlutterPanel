@@ -14,45 +14,26 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
+/**
+ * @file brightness_status.c
+ * @author kozakemi (kozakemi@gmail.com)
+ * @brief 查询亮度状态协议处理
+ * @date 2026-03-02
+ *
+ * @copyright Copyright (c) 2026 kozakemi
+ *
+ */
 #include "brightness_status.h"
-#include "../../../protocol/protocol_utils.h"
-#include "../brightness_def.h"
 #include "../impl/brightness_impl.h"
-#include "../brightness_scheduler.h"
-#include "cJSON.h"
-#include "civetweb.h"
-#include <stdbool.h>
-#include <stdio.h>
 
 /**
- * @brief 处理亮度状态请求
+ * @brief 处理查询亮度状态请求
  *
- * @param conn WebSocket 连接指针
- * @param index 调度索引
- * @param root JSON 根对象指针
+ * @return brightness_status_resp_t 亮度状态响应
  */
-void brightness_status(struct mg_connection *conn, size_t index, cJSON *root)
+brightness_status_resp_t brightness_status(void)
 {
-    brightness_error_t ret = BRIGHTNESS_ERR_OK;
-    int brightness = 0;
-
-    // 调用业务层执行操作
-    ret = brightness_impl_get_status(&brightness);
-
-    // 获取request_id
-    const char *request_id = protocol_get_request_id(root);
-    const char *response_type = brightness_dispatch_get_by_index(index)->response;
-
-    // 构建响应
-    cJSON *response = protocol_create_response(response_type, request_id, (ret == BRIGHTNESS_ERR_OK), ret);
-    if (response)
-    {
-        cJSON *res_data = cJSON_GetObjectItem(response, "data");
-        if (res_data)
-        {
-            cJSON_AddNumberToObject(res_data, "brightness", brightness);
-        }
-        protocol_send_response(conn, response);
-        cJSON_Delete(response);
-    }
+    brightness_status_resp_t resp = {0};
+    resp.error = brightness_impl_get_status(&resp.brightness);
+    return resp;
 }

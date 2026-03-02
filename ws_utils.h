@@ -14,16 +14,28 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
+/**
+ * @file ws_utils.h
+ * @author kozakemi (kozakemi@gmail.com)
+ * @brief WebSocket工具函数声明
+ * @date 2026-03-02
+ *
+ * @copyright Copyright (c) 2026 kozakemi
+ *
+ */
 #ifndef WS_UTILS_H
 #define WS_UTILS_H
 
 #include "civetweb.h"
 
 /**
- * @brief Send a UTF-8 text message via civetweb.
+ * @brief 通过WebSocket发送UTF-8文本消息
  *
- * Sends a text message using mg_websocket_write().
- * Returns the value from mg_websocket_write(), or -1 on error.
+ * 使用mg_websocket_write()发送文本消息。
+ *
+ * @param conn WebSocket连接指针
+ * @param text 要发送的文本
+ * @return int mg_websocket_write()的返回值，失败返回-1
  */
 int ws_send_text(struct mg_connection *conn, const char *text);
 

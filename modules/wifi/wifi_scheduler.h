@@ -14,24 +14,27 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-#ifndef WIFI_SCHEDULER_H
-#define WIFI_SCHEDULER_H
-#include "cJSON.h"
-#include "civetweb.h"
-#include "wifi_def.h"
-#include <stdint.h>
-
 /**
- * @brief wifi调度结构体定义
+ * @file wifi_scheduler.h
+ * @author kozakemi (kozakemi@gmail.com)
+ * @brief WiFi模块调度器声明
+ * @date 2026-03-02
+ *
+ * @copyright Copyright (c) 2026 kozakemi
  *
  */
-typedef struct
-{
-    char *request;
-    char *response;
-    void (*handler)(struct mg_connection *conn, size_t index, cJSON *root);
-} wifi_dispatch;
+#ifndef WIFI_SCHEDULER_H
+#define WIFI_SCHEDULER_H
 
+#include "cJSON.h"
+#include "civetweb.h"
+
+/**
+ * @brief WiFi模块消息调度入口
+ *
+ * @param conn WebSocket连接指针
+ * @param root 解析后的JSON根对象
+ */
 void wifi_scheduler(struct mg_connection *conn, cJSON *root);
-wifi_dispatch *wifi_dispatch_get_by_index(size_t index);
+
 #endif

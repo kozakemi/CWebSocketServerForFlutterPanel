@@ -14,10 +14,26 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
+/**
+ * @file wifi_disconnect.h
+ * @author kozakemi (kozakemi@gmail.com)
+ * @brief WiFi断开连接协议声明
+ * @date 2026-03-02
+ *
+ * @copyright Copyright (c) 2026 kozakemi
+ *
+ */
 #ifndef WIFI_DISCONNECT_H
 #define WIFI_DISCONNECT_H
 
-#include "cJSON.h"
-#include "civetweb.h"
-void wifi_disconnect(struct mg_connection *conn, size_t index, cJSON *root);
+#include "../wifi_def.h"
+
+/**
+ * @brief 处理WiFi断开连接请求
+ *
+ * @param req 断开连接请求结构体（可为NULL）
+ * @return wifi_disconnect_resp_t 断开连接响应
+ */
+wifi_disconnect_resp_t wifi_disconnect(const wifi_disconnect_req_t *req);
+
 #endif

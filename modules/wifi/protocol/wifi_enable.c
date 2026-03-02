@@ -14,52 +14,36 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
+/**
+ * @file wifi_enable.c
+ * @author kozakemi (kozakemi@gmail.com)
+ * @brief 启用/禁用WiFi协议处理
+ * @date 2026-03-02
+ *
+ * @copyright Copyright (c) 2026 kozakemi
+ *
+ */
 #include "wifi_enable.h"
-#include "../../../protocol/protocol_utils.h"
-#include "../wifi_def.h"
 #include "../impl/wifi_impl.h"
-#include "../wifi_scheduler.h"
-#include "cJSON.h"
-#include "civetweb.h"
-#include <stdbool.h>
-#include <stdio.h>
 
 /**
- * @brief wifi开关协议处理
+ * @brief 处理启用/禁用WiFi请求
  *
- * @param conn WebSocket 连接指针
- * @param index 调度数组索引值
- * @param root json对象
+ * @param req 启用/禁用请求结构体
+ * @return wifi_enable_resp_t 响应结构体
  */
-void wifi_enable(struct mg_connection *conn, size_t index, cJSON *root)
+wifi_enable_resp_t wifi_enable(const wifi_enable_req_t *req)
 {
-    wifi_error_t ret = WIFI_ERR_BAD_REQUEST;
-    bool enable = false;
-
-    // 解析请求
-    cJSON *data = cJSON_GetObjectItem(root, "data");
-    cJSON *enable_item = data ? cJSON_GetObjectItem(data, "enable") : NULL;
-    if (enable_item && cJSON_IsBool(enable_item))
+    wifi_enable_resp_t resp = {0};
+    if (!req || !req->valid)
     {
-        enable = cJSON_IsTrue(enable_item);
-        // 调用业务层执行操作
-        ret = wifi_impl_enable(enable);
+        resp.error = WIFI_ERR_BAD_REQUEST;
+        return resp;
     }
-
-    // 获取request_id
-    const char *request_id = protocol_get_request_id(root);
-    const char *response_type = wifi_dispatch_get_by_index(index)->response;
-
-    // 构建响应
-    cJSON *response = protocol_create_response(response_type, request_id, (ret == WIFI_ERR_OK), ret);
-    if (response)
+    resp.error = wifi_impl_enable(req->enable);
+    if (resp.error == WIFI_ERR_OK)
     {
-        cJSON *res_data = cJSON_GetObjectItem(response, "data");
-        if (res_data)
-        {
-            cJSON_AddBoolToObject(res_data, "enable", enable);
-        }
-        protocol_send_response(conn, response);
-        cJSON_Delete(response);
+        resp.enable = req->enable;
     }
+    return resp;
 }

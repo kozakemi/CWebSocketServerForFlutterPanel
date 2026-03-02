@@ -14,12 +14,26 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
+/**
+ * @file wifi_scan.h
+ * @author kozakemi (kozakemi@gmail.com)
+ * @brief WiFi扫描协议声明
+ * @date 2026-03-02
+ *
+ * @copyright Copyright (c) 2026 kozakemi
+ *
+ */
 #ifndef WIFI_SCAN_H
 #define WIFI_SCAN_H
-#include "cJSON.h"
-#include "civetweb.h"
-#include <stddef.h>
 
-void wifi_scan(struct mg_connection *conn, size_t index, cJSON *root);
+#include "../wifi_def.h"
+
+/**
+ * @brief 处理WiFi扫描请求
+ *
+ * @param req 扫描请求结构体（可为NULL）
+ * @return wifi_scan_resp_t 扫描结果响应
+ */
+wifi_scan_resp_t wifi_scan(const wifi_scan_req_t *req);
 
 #endif

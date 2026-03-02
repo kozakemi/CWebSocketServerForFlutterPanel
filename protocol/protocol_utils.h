@@ -14,6 +14,15 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
+/**
+ * @file protocol_utils.h
+ * @author kozakemi (kozakemi@gmail.com)
+ * @brief 协议工具函数声明
+ * @date 2026-03-02
+ *
+ * @copyright Copyright (c) 2026 kozakemi
+ *
+ */
 #ifndef PROTOCOL_UTILS_H
 #define PROTOCOL_UTILS_H
 

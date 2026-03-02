@@ -14,6 +14,15 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
+/**
+ * @file wifi_impl.h
+ * @author kozakemi (kozakemi@gmail.com)
+ * @brief WiFi模块底层实现接口声明
+ * @date 2026-03-02
+ *
+ * @copyright Copyright (c) 2026 kozakemi
+ *
+ */
 #ifndef WIFI_IMPL_H
 #define WIFI_IMPL_H
 
@@ -22,45 +31,6 @@ limitations under the License.
 #include <stddef.h>
 
 #define WIFI_DEVICE "wlan0"
-/**
- * @brief WiFi网络信息结构体
- */
-typedef struct
-{
-    char *ssid;
-    char *bssid;
-    int signal;
-    char *security;
-    int channel;
-    int frequency_mhz;
-    bool recorded;
-} wifi_network_info;
-
-/**
- * @brief WiFi状态信息结构体
- */
-typedef struct
-{
-    bool enable;
-    bool connected;
-    char *ssid;
-    char *bssid;
-    char *interface;
-    char *ip;
-    int signal;
-    char *security;
-    int channel;
-    int frequency_mhz;
-} wifi_status_info;
-
-/**
- * @brief WiFi扫描结果结构体
- */
-typedef struct
-{
-    wifi_network_info *networks;
-    size_t network_count;
-} wifi_scan_result;
 
 /**
  * @brief 启用或禁用Wi-Fi功能（不保证连接成功）

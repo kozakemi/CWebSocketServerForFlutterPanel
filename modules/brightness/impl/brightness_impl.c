@@ -14,13 +14,26 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
+/**
+ * @file brightness_impl.c
+ * @author kozakemi (kozakemi@gmail.com)
+ * @brief 亮度模块底层实现（sysfs接口）
+ * @date 2026-03-02
+ *
+ * @copyright Copyright (c) 2026 kozakemi
+ *
+ */
 #include "brightness_impl.h"
 #include "../brightness_def.h"
 #include <errno.h>
 #include <stdio.h>
 
 /**
- * @brief 读取值转int
+ * @brief 从文件读取整数值
+ *
+ * @param path 文件路径
+ * @param out 输出参数，存储读取的值
+ * @return brightness_error_t 错误码
  */
 static brightness_error_t read_int_file(const char *path, int *out)
 {
@@ -49,7 +62,11 @@ static brightness_error_t read_int_file(const char *path, int *out)
 }
 
 /**
- * @brief 写值为int
+ * @brief 将整数值写入文件
+ *
+ * @param path 文件路径
+ * @param value 要写入的值
+ * @return brightness_error_t 错误码
  */
 static brightness_error_t write_int_file(const char *path, int value)
 {
@@ -76,6 +93,12 @@ static brightness_error_t write_int_file(const char *path, int value)
     return BRIGHTNESS_ERR_OK;
 }
 
+/**
+ * @brief 设置屏幕亮度
+ *
+ * @param percent 亮度百分比（0-100）
+ * @return brightness_error_t 错误码
+ */
 brightness_error_t brightness_impl_set(int percent)
 {
     if (percent < 0 || percent > 100)
@@ -105,6 +128,12 @@ brightness_error_t brightness_impl_set(int percent)
     return err;
 }
 
+/**
+ * @brief 获取屏幕亮度
+ *
+ * @param percent 输出参数，亮度百分比（0-100）
+ * @return brightness_error_t 错误码
+ */
 brightness_error_t brightness_impl_get_status(int *percent)
 {
     if (!percent)

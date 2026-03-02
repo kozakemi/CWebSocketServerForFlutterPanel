@@ -14,9 +14,25 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
+/**
+ * @file wifi_status.h
+ * @author kozakemi (kozakemi@gmail.com)
+ * @brief 查询WiFi状态协议声明
+ * @date 2026-03-02
+ *
+ * @copyright Copyright (c) 2026 kozakemi
+ *
+ */
 #ifndef WIFI_STATUS_H
 #define WIFI_STATUS_H
-#include "cJSON.h"
-#include "civetweb.h"
-void wifi_status(struct mg_connection *conn, size_t index, cJSON *root);
+
+#include "../wifi_def.h"
+
+/**
+ * @brief 处理查询WiFi状态请求
+ *
+ * @return wifi_status_resp_t 状态响应结构体
+ */
+wifi_status_resp_t wifi_status(void);
+
 #endif

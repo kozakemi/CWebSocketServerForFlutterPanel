@@ -14,6 +14,15 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
+/**
+ * @file brightness_impl.h
+ * @author kozakemi (kozakemi@gmail.com)
+ * @brief 亮度模块底层实现接口声明
+ * @date 2026-03-02
+ *
+ * @copyright Copyright (c) 2026 kozakemi
+ *
+ */
 #ifndef BRIGHTNESS_IMPL_H
 #define BRIGHTNESS_IMPL_H
 
@@ -22,12 +31,13 @@ limitations under the License.
 // 可在此处修改，或在编译时通过 -DBRIGHTNESS_SYSFS_DIR="\"/sys/class/backlight/intel_backlight\""
 // 覆盖
 #ifndef BRIGHTNESS_SYSFS_DIR
-#define BRIGHTNESS_SYSFS_DIR "/sys/class/backlight/backlight"
+#define BRIGHTNESS_SYSFS_DIR "/sys/class/backlight/backlight" ///< 亮度设备目录
 #endif
 
 // 派生的具体文件路径宏
-#define BRIGHTNESS_SYSFS_BRIGHTNESS_PATH BRIGHTNESS_SYSFS_DIR "/brightness"
-#define BRIGHTNESS_SYSFS_MAX_BRIGHTNESS_PATH BRIGHTNESS_SYSFS_DIR "/max_brightness"
+#define BRIGHTNESS_SYSFS_BRIGHTNESS_PATH BRIGHTNESS_SYSFS_DIR "/brightness" ///< 亮度文件路径
+#define BRIGHTNESS_SYSFS_MAX_BRIGHTNESS_PATH                                                       \
+    BRIGHTNESS_SYSFS_DIR "/max_brightness" ///< 最大亮度文件路径
 
 /**
  * @brief 设置屏幕亮度

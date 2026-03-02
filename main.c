@@ -14,9 +14,18 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-#include "modules/brightness/brightness_scheduler.h"
+/**
+ * @file main.c
+ * @author kozakemi (kozakemi@gmail.com)
+ * @brief WebSocket服务器主函数
+ * @date 2026-03-02
+ *
+ * @copyright Copyright (c) 2026  kozakemi
+ *
+ */
 #include "cJSON.h"
 #include "civetweb.h"
+#include "modules/brightness/brightness_scheduler.h"
 #include "modules/wifi/wifi_scheduler.h"
 #include "ws_utils.h"
 #include <pthread.h>
@@ -31,16 +40,21 @@ limitations under the License.
 #define SERVER_PORT 8080
 // ----------------------------------------------------
 
-// 用户连接数据
+/**
+ * @brief 用户连接数据
+ */
 struct per_session_data
 {
-    char path[256]; // 存储WebSocket连接的路径
+    char path[256]; ///< 存储WebSocket连接的路径
 };
 
+/**
+ * @brief WebSocket路径与调度器映射
+ */
 typedef struct
 {
-    char *patch;
-    void (*scheduler)(struct mg_connection *conn, cJSON *root);
+    char *patch;                                                ///< WebSocket路径
+    void (*scheduler)(struct mg_connection *conn, cJSON *root); ///< 该路径对应的调度器函数
 } websocket_path_scheduling;
 
 static websocket_path_scheduling websocket_path_scheduling_table[] = {
@@ -54,7 +68,15 @@ static websocket_path_scheduling websocket_path_scheduling_table[] = {
 static struct mg_context *g_ctx = NULL;
 static volatile sig_atomic_t g_exit = 0;
 
-/* WebSocket 连接处理器：客户端尝试建立连接时调用 */
+/**
+ * @brief WebSocket连接处理器
+ *
+ * 客户端尝试建立连接时调用，分配并初始化会话数据。
+ *
+ * @param conn 连接指针
+ * @param user_data 用户数据（未使用）
+ * @return int 0表示接受连接，1表示拒绝连接
+ */
 static int ws_connect_handler(const struct mg_connection *conn, void *user_data)
 {
     (void)user_data; /* unused */
@@ -86,7 +108,14 @@ static int ws_connect_handler(const struct mg_connection *conn, void *user_data)
     return 0; // 接受连接
 }
 
-/* WebSocket 就绪处理器：握手完成后调用 */
+/**
+ * @brief WebSocket就绪处理器
+ *
+ * @details 当WebSocket连接就绪时调用，打印连接就绪信息。
+ *
+ * @param conn 连接指针
+ * @param user_data 用户数据（未使用）
+ */
 static void ws_ready_handler(struct mg_connection *conn, void *user_data)
 {
     (void)conn;      /* unused */
@@ -94,7 +123,18 @@ static void ws_ready_handler(struct mg_connection *conn, void *user_data)
     printf("WebSocket 连接就绪\n");
 }
 
-/* WebSocket 数据处理器：收到数据时调用 */
+/**
+ * @brief WebSocket数据处理器
+ *
+ * @details 收到数据时调用，解析JSON并根据路径分发到对应调度器。
+ *
+ * @param conn 连接指针
+ * @param opcode 消息操作码
+ * @param data 消息数据
+ * @param datasize 数据长度
+ * @param user_data 用户数据（未使用）
+ * @return int 0表示关闭连接，1表示保持连接
+ */
 static int ws_data_handler(struct mg_connection *conn, int opcode, char *data, size_t datasize,
                            void *user_data)
 {
@@ -167,7 +207,14 @@ static int ws_data_handler(struct mg_connection *conn, int opcode, char *data, s
     return 1; // 保持连接
 }
 
-/* WebSocket 关闭处理器：连接关闭时调用 */
+/**
+ * @brief WebSocket关闭处理器
+ *
+ * @details 连接关闭时调用，释放会话数据。
+ *
+ * @param conn 连接指针
+ * @param user_data 用户数据（未使用）
+ */
 static void ws_close_handler(const struct mg_connection *conn, void *user_data)
 {
     (void)user_data; /* unused */
@@ -182,13 +229,22 @@ static void ws_close_handler(const struct mg_connection *conn, void *user_data)
     printf("客户端连接已关闭.\n");
 }
 
-/* 信号处理器 */
+/**
+ * @brief 信号处理器
+ *
+ * @param sig 信号
+ */
 static void signal_handler(int sig)
 {
     (void)sig;
     g_exit = 1;
 }
 
+/**
+ * @brief 主函数
+ *
+ * @return int
+ */
 int main(void)
 {
     // 初始化 civetweb 库

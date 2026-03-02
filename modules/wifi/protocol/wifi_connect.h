@@ -14,9 +14,26 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
+/**
+ * @file wifi_connect.h
+ * @author kozakemi (kozakemi@gmail.com)
+ * @brief WiFi连接协议声明
+ * @date 2026-03-02
+ *
+ * @copyright Copyright (c) 2026 kozakemi
+ *
+ */
 #ifndef WIFI_CONNECT_H
 #define WIFI_CONNECT_H
-#include "cJSON.h"
-#include "civetweb.h"
-void wifi_connect(struct mg_connection *conn, size_t index, cJSON *root);
+
+#include "../wifi_def.h"
+
+/**
+ * @brief 处理WiFi连接请求
+ *
+ * @param req 连接请求结构体
+ * @return wifi_connect_resp_t 连接响应结构体
+ */
+wifi_connect_resp_t wifi_connect(const wifi_connect_req_t *req);
+
 #endif

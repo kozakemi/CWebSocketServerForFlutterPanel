@@ -14,6 +14,15 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
+/**
+ * @file wifi_impl.c
+ * @author kozakemi (kozakemi@gmail.com)
+ * @brief WiFi模块底层实现（wpa_cli接口）
+ * @date 2026-03-02
+ *
+ * @copyright Copyright (c) 2026 kozakemi
+ *
+ */
 #include "wifi_impl.h"
 #include "../wifi_def.h"
 #include <stdio.h>
@@ -22,7 +31,12 @@ limitations under the License.
 #include <unistd.h>
 
 /**
- * @brief 解码UTF-8转义序列
+ * @brief 解码UTF-8转义序列（如\\xE4\\xBD\\xA0）
+ *
+ * @param input 输入字符串
+ * @param output 输出缓冲区
+ * @param output_size 输出缓冲区大小
+ * @return int 成功返回0，失败返回-1
  */
 static int decode_utf8_escape_sequence(const char *input, char *output, size_t output_size)
 {
@@ -66,6 +80,12 @@ static int decode_utf8_escape_sequence(const char *input, char *output, size_t o
     return 0;
 }
 
+/**
+ * @brief 启用或禁用Wi-Fi功能
+ *
+ * @param is_enable true启用，false禁用
+ * @return wifi_error_t 错误码
+ */
 wifi_error_t wifi_impl_enable(bool is_enable)
 {
     char command[256];
@@ -100,6 +120,13 @@ wifi_error_t wifi_impl_enable(bool is_enable)
     return WIFI_ERR_OK;
 }
 
+/**
+ * @brief 执行WiFi扫描
+ *
+ * @param rescan 是否强制重新扫描
+ * @param result 扫描结果（由函数分配，调用者需释放）
+ * @return wifi_error_t 错误码
+ */
 wifi_error_t wifi_impl_scan(bool rescan, wifi_scan_result *result)
 {
     FILE *fp;
@@ -329,6 +356,12 @@ void wifi_impl_scan_result_free(wifi_scan_result *result)
     result->network_count = 0;
 }
 
+/**
+ * @brief 获取WiFi连接状态
+ *
+ * @param status 状态信息（由函数分配部分字段，调用者需调用wifi_impl_status_free释放）
+ * @return wifi_error_t 错误码
+ */
 wifi_error_t wifi_impl_get_status(wifi_status_info *status)
 {
     status->enable = false;
@@ -456,6 +489,11 @@ wifi_error_t wifi_impl_get_status(wifi_status_info *status)
     return WIFI_ERR_OK;
 }
 
+/**
+ * @brief 释放状态信息内存
+ *
+ * @param status 状态信息指针
+ */
 void wifi_impl_status_free(wifi_status_info *status)
 {
     if (!status)
@@ -474,6 +512,14 @@ void wifi_impl_status_free(wifi_status_info *status)
     status->security = NULL;
 }
 
+/**
+ * @brief 连接WiFi网络
+ *
+ * @param ssid 网络SSID
+ * @param password 密码（可为NULL或空）
+ * @param timeout_ms 超时毫秒数，0表示默认
+ * @return wifi_error_t 错误码
+ */
 wifi_error_t wifi_impl_connect(const char *ssid, const char *password, int timeout_ms)
 {
     FILE *fp;
@@ -603,6 +649,12 @@ wait_for_connection:
     return WIFI_ERR_OK;
 }
 
+/**
+ * @brief 断开WiFi连接
+ *
+ * @param ssid 要断开的SSID（NULL表示断开当前连接）
+ * @return wifi_error_t 错误码
+ */
 wifi_error_t wifi_impl_disconnect(const char *ssid)
 {
     FILE *fp;

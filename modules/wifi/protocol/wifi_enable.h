@@ -14,9 +14,26 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
+/**
+ * @file wifi_enable.h
+ * @author kozakemi (kozakemi@gmail.com)
+ * @brief 启用/禁用WiFi协议声明
+ * @date 2026-03-02
+ *
+ * @copyright Copyright (c) 2026 kozakemi
+ *
+ */
 #ifndef WIFI_ENABLE_H
 #define WIFI_ENABLE_H
-#include "cJSON.h"
-#include "civetweb.h"
-void wifi_enable(struct mg_connection *conn, size_t index, cJSON *root);
+
+#include "../wifi_def.h"
+
+/**
+ * @brief 处理启用/禁用WiFi请求
+ *
+ * @param req 启用/禁用请求结构体
+ * @return wifi_enable_resp_t 响应结构体
+ */
+wifi_enable_resp_t wifi_enable(const wifi_enable_req_t *req);
+
 #endif

@@ -59,3 +59,6 @@ project-cppcheck-build-dir
 
 # clang 缓存
 .cache/
+# Doxygen 文档
+doc/doxygen/*
+!doc/doxygen/Doxyfile
